@@ -1,0 +1,1774 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Seal Bounding Box Annotator v2.1.0</title>
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0f9ff',
+              100: '#e0f2fe',
+              500: '#0284c7',
+              600: '#0369a1',
+              700: '#075985',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Custom scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.05);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(0, 0, 0, 0.4);
+    }
+    
+    /* Touch actions for canvas container */
+    .touch-canvas {
+      touch-action: none;
+    }
+
+    /* Drag handle cursor */
+    .drag-handle {
+      cursor: grab;
+    }
+    .drag-handle:active {
+      cursor: grabbing;
+    }
+
+    /* Character item dragging style */
+    .dragging {
+      opacity: 0.5;
+      background-color: #f3f4f6;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 text-gray-800 min-h-screen w-screen overflow-x-hidden flex flex-col font-sans select-none">
+
+  <!-- TOP HEADER / NAVBAR -->
+  <header class="bg-slate-900 text-white px-4 py-2.5 flex justify-between items-center shadow-md z-30 shrink-0">
+    <div class="flex items-center space-x-3">
+      <div class="bg-amber-600 p-1.5 rounded-lg text-white font-bold flex items-center justify-center">
+        <i class="fa-solid fa-stamp text-lg"></i>
+      </div>
+      <div>
+        <h1 class="font-bold text-base md:text-lg leading-tight">Seal Character Bounding Box Annotator</h1>
+        <p class="text-xs text-gray-400 hidden sm:block">v2.1.0 • Schema 2.0.0 Compatible</p>
+      </div>
+    </div>
+    <div class="flex items-center space-x-2">
+      <!-- Toggle Mobile Sidebar button -->
+      <button id="btn-toggle-sidebar" class="md:hidden bg-slate-800 hover:bg-slate-700 text-white px-3 py-1.5 rounded text-sm flex items-center gap-1.5 border border-slate-700">
+        <i class="fa-solid fa-bars"></i>
+        <span>Sidebar</span>
+      </button>
+      <button id="btn-run-ai" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded text-sm font-medium transition shadow flex items-center gap-1.5">
+        <i class="fa-solid fa-wand-magic-sparkles"></i>
+        <span class="hidden sm:inline">Run AI Detection</span>
+        <span class="sm:hidden">AI</span>
+      </button>
+      <button id="btn-import-json" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white px-3 py-1.5 rounded text-sm font-medium transition flex items-center gap-1.5">
+        <i class="fa-solid fa-file-import"></i>
+        <span class="hidden md:inline">Import JSON</span>
+      </button>
+      <button id="btn-export-json" class="bg-amber-600 hover:bg-amber-700 text-white px-3 py-1.5 rounded text-sm font-medium transition shadow flex items-center gap-1.5">
+        <i class="fa-solid fa-download"></i>
+        <span class="hidden md:inline">Export JSON</span>
+      </button>
+      <input type="file" id="input-import-json" accept=".json" class="hidden">
+    </div>
+  </header>
+
+  <!-- MAIN APP CONTAINER -->
+  <div class="flex flex-col md:flex-row h-[85vh] min-h-[650px] relative">
+
+    <!-- LEFT SIDEBAR (30% on desktop) -->
+    <aside id="sidebar" class="w-full md:w-[30%] bg-white border-r border-gray-200 flex flex-col h-full z-20 transition-all duration-300 absolute md:relative inset-0 transform -translate-x-full md:translate-x-0 shadow-2xl md:shadow-none">
+      
+      <!-- Mobile Close Sidebar Header -->
+      <div class="md:hidden p-3 bg-gray-50 border-b flex justify-between items-center">
+        <span class="font-semibold text-gray-700">Controls & Queue</span>
+        <button id="btn-close-sidebar" class="text-gray-500 hover:text-gray-800 p-1">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <div class="flex-1 overflow-y-auto p-3 space-y-4">
+        
+        <!-- SECTION 1: LOAD IMAGES -->
+        <div class="bg-gray-50 p-3 rounded-lg border border-gray-200">
+          <h2 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <i class="fa-solid fa-folder-open text-amber-600"></i> 1. Load Images
+          </h2>
+          <div class="grid grid-cols-2 gap-2 mb-2">
+            <button id="btn-open-folder" class="bg-white hover:bg-gray-100 text-gray-700 border border-gray-300 rounded p-2 text-xs font-medium text-center flex flex-col items-center justify-center gap-1 transition">
+              <i class="fa-solid fa-folder text-yellow-500 text-base"></i>
+              Open Folder
+            </button>
+            <button id="btn-open-files" class="bg-white hover:bg-gray-100 text-gray-700 border border-gray-300 rounded p-2 text-xs font-medium text-center flex flex-col items-center justify-center gap-1 transition">
+              <i class="fa-solid fa-image text-blue-500 text-base"></i>
+              Open Single/Multiple
+            </button>
+            <input type="file" id="input-folder" webkitdirectory directory multiple class="hidden">
+            <input type="file" id="input-files" multiple accept="image/*" class="hidden">
+          </div>
+
+          <!-- Drag and Drop Zone -->
+          <div id="drop-zone" class="border-2 border-dashed border-gray-300 hover:border-amber-500 rounded-lg p-3 text-center bg-white cursor-pointer transition">
+            <i class="fa-solid fa-cloud-arrow-up text-gray-400 text-xl mb-1"></i>
+            <p class="text-xs text-gray-600 font-medium">Drag & Drop Image files here</p>
+            <p class="text-[10px] text-gray-400 mt-0.5">JPEG, PNG supported</p>
+          </div>
+        </div>
+
+        <!-- SECTION 2: IMAGE QUEUE -->
+        <div class="bg-gray-50 p-3 rounded-lg border border-gray-200 flex flex-col h-64">
+          <div class="flex justify-between items-center mb-2">
+            <h2 class="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
+              <i class="fa-solid fa-list-check text-amber-600"></i> 2. Image Queue (<span id="queue-count">0</span>)
+            </h2>
+            <div class="flex space-x-1">
+              <button id="btn-prev-img" class="bg-white hover:bg-gray-100 text-gray-700 border rounded px-2 py-0.5 text-xs font-medium disabled:opacity-40" disabled>
+                <i class="fa-solid fa-chevron-left"></i> Prev
+              </button>
+              <button id="btn-next-img" class="bg-white hover:bg-gray-100 text-gray-700 border rounded px-2 py-0.5 text-xs font-medium disabled:opacity-40" disabled>
+                Next <i class="fa-solid fa-chevron-right"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Search Filter Box -->
+          <div class="relative mb-2">
+            <input type="text" id="filter-input" placeholder="Filter image queue..." class="w-full pl-7 pr-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-amber-500">
+            <i class="fa-solid fa-magnifying-glass text-gray-400 text-xs absolute left-2 top-2"></i>
+          </div>
+
+          <!-- Queue List -->
+          <div id="queue-list" class="flex-1 overflow-y-auto space-y-1 bg-white border border-gray-200 rounded p-1">
+            <p class="text-xs text-gray-400 text-center py-8">No images loaded yet</p>
+          </div>
+        </div>
+
+        <!-- SECTION 3: ANNOTATOR INFO -->
+        <div class="bg-gray-50 p-3 rounded-lg border border-gray-200">
+          <h2 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <i class="fa-solid fa-user-pen text-amber-600"></i> 3. Annotator Info
+          </h2>
+          <div class="flex items-center space-x-2">
+            <label for="annotator-name" class="text-xs font-medium text-gray-600">Name:</label>
+            <input type="text" id="annotator-name" value="Tester_Oct2026" class="flex-1 text-xs px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-amber-500">
+          </div>
+        </div>
+
+        <!-- SECTION 4: IMAGE METADATA -->
+        <div class="bg-gray-50 p-3 rounded-lg border border-gray-200">
+          <h2 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <i class="fa-solid fa-circle-info text-amber-600"></i> 4. Image Metadata
+          </h2>
+          <div id="metadata-container" class="text-[11px] space-y-1 text-gray-600">
+            <div class="flex justify-between border-b pb-0.5"><span class="text-gray-400">Filename:</span> <span id="meta-filename" class="font-mono truncate max-w-[180px] text-right">-</span></div>
+            <div class="flex justify-between border-b pb-0.5"><span class="text-gray-400">Relative Path:</span> <span id="meta-path" class="font-mono truncate max-w-[180px] text-right">-</span></div>
+            <div class="flex justify-between border-b pb-0.5"><span class="text-gray-400">Format/MIME:</span> <span id="meta-format" class="font-mono">-</span></div>
+            <div class="flex justify-between border-b pb-0.5"><span class="text-gray-400">Dimensions:</span> <span id="meta-dim" class="font-mono">-</span></div>
+            <div class="flex justify-between border-b pb-0.5"><span class="text-gray-400">Byte Size:</span> <span id="meta-bytes" class="font-mono">-</span></div>
+            <div class="flex justify-between border-b pb-0.5"><span class="text-gray-400">SHA-256:</span> <span id="meta-sha256" class="font-mono truncate max-w-[150px] text-right">-</span></div>
+            <div class="flex justify-between"><span class="text-gray-400">EXIF Orientation:</span> <span id="meta-exif" class="font-mono">-</span></div>
+          </div>
+        </div>
+
+      </div>
+    </aside>
+
+    <!-- RIGHT MAIN AREA -->
+    <main class="flex-1 flex flex-col h-full overflow-hidden bg-gray-200">
+
+      <!-- TOP PART (65% height): IMAGE PREVIEW CANVAS FRAME -->
+      <section class="h-[65%] relative bg-slate-950 flex flex-col overflow-hidden select-none">
+        
+        <!-- Canvas Floating Control Toolbar -->
+        <div class="absolute top-2 left-2 z-10 flex items-center space-x-1 bg-slate-900/90 border border-slate-700/80 p-1 rounded-lg shadow-lg text-white text-xs">
+          <!-- Undo / Redo Buttons -->
+          <button id="btn-undo" title="Undo (Ctrl+Z)" disabled class="p-1.5 hover:bg-slate-800 disabled:opacity-30 disabled:hover:bg-transparent rounded transition"><i class="fa-solid fa-rotate-left"></i></button>
+          <button id="btn-redo" title="Redo (Ctrl+Y)" disabled class="p-1.5 hover:bg-slate-800 disabled:opacity-30 disabled:hover:bg-transparent rounded transition"><i class="fa-solid fa-rotate-right"></i></button>
+          <span class="text-gray-600">|</span>
+          <button id="btn-zoom-in" title="Zoom In" class="p-1.5 hover:bg-slate-800 rounded transition"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
+          <button id="btn-zoom-out" title="Zoom Out" class="p-1.5 hover:bg-slate-800 rounded transition"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
+          <button id="btn-zoom-reset" title="Reset View" class="p-1.5 hover:bg-slate-800 rounded transition"><i class="fa-solid fa-arrow-rotate-left"></i></button>
+          <span class="text-gray-600">|</span>
+          <span id="zoom-level-text" class="px-1 text-[11px] font-mono text-gray-300">100%</span>
+          <span class="text-gray-600">|</span>
+          <button id="btn-toggle-crosshairs" title="Toggle Alignment Crosshairs" class="p-1.5 bg-amber-600/80 hover:bg-amber-600 text-white rounded transition">
+            <i class="fa-solid fa-crosshairs"></i>
+          </button>
+        </div>
+
+        <!-- Top Right Instructions / Status -->
+        <div class="absolute top-2 right-2 z-10 bg-slate-900/80 text-gray-300 border border-slate-700 px-2.5 py-1 rounded-full text-[11px] flex items-center space-x-2">
+          <span id="canvas-status">Draw or Select Bounding Box</span>
+          <span class="text-gray-600">|</span>
+          <span id="cursor-coords" class="font-mono text-gray-400">X: 0, Y: 0</span>
+        </div>
+
+        <!-- Canvas Container -->
+        <div id="canvas-wrapper" class="flex-1 relative overflow-hidden cursor-crosshair touch-canvas">
+          <canvas id="annotation-canvas" class="absolute top-0 left-0"></canvas>
+        </div>
+
+        <!-- Keyboard Controls Help Overlay Bar -->
+        <div class="bg-slate-900 text-gray-400 text-[10px] px-3 py-1 flex justify-between items-center border-t border-slate-800 shrink-0">
+          <div class="flex space-x-3 overflow-x-auto whitespace-nowrap">
+            <span><kbd class="bg-slate-800 px-1 border border-slate-700 rounded text-gray-200">Left Click + Drag</kbd> Draw Box</span>
+            <span><kbd class="bg-slate-800 px-1 border border-slate-700 rounded text-gray-200">Ctrl+Z / Y</kbd> Undo/Redo</span>
+            <span><kbd class="bg-slate-800 px-1 border border-slate-700 rounded text-gray-200">Arrows</kbd> Move Box</span>
+            <span><kbd class="bg-slate-800 px-1 border border-slate-700 rounded text-gray-200">Delete</kbd> Remove Box</span>
+            <span><kbd class="bg-slate-800 px-1 border border-slate-700 rounded text-gray-200">Wheel</kbd> Zoom</span>
+            <span><kbd class="bg-slate-800 px-1 border border-slate-700 rounded text-gray-200">Right Click + Drag</kbd> Pan</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- BOTTOM PART (35% height): ANNOTATIONS LIST & SEAL METADATA -->
+      <section class="h-[35%] bg-white border-t border-gray-300 flex flex-col md:flex-row overflow-hidden">
+        
+        <!-- Left Side (60%): Character Annotations List -->
+        <div class="w-full md:w-[60%] border-r border-gray-200 flex flex-col h-full">
+          <div class="p-2 bg-gray-50 border-b border-gray-200 flex justify-between items-center shrink-0">
+            <div class="flex items-center space-x-2">
+              <h3 class="font-bold text-xs text-gray-700 uppercase tracking-wide flex items-center gap-1.5">
+                <i class="fa-solid fa-font text-amber-600"></i> Characters List (<span id="char-count">0</span>)
+              </h3>
+              <span class="text-[10px] text-gray-400 hidden sm:inline">(Drag handle icon <i class="fa-solid fa-grip-vertical text-gray-400"></i> to reorder reading sequence)</span>
+            </div>
+            <button id="btn-add-char" class="bg-amber-600 hover:bg-amber-700 text-white text-xs px-2.5 py-1 rounded font-medium flex items-center gap-1 shadow-sm transition">
+              <i class="fa-solid fa-plus text-[10px]"></i> Add Char
+            </button>
+          </div>
+
+          <!-- Characters Table/List Header -->
+          <div class="grid grid-cols-12 gap-1 px-2 py-1 bg-gray-100 border-b text-[11px] font-semibold text-gray-500 shrink-0">
+            <div class="col-span-1 text-center">Ord</div>
+            <div class="col-span-2 text-center">Inscription</div>
+            <div class="col-span-2 text-center">Transcription</div>
+            <div class="col-span-3 text-center">Legibility</div>
+            <div class="col-span-3 text-center">BBox [xyxy]</div>
+            <div class="col-span-1 text-center">Del</div>
+          </div>
+
+          <!-- Reorderable List Container -->
+          <div id="char-list-container" class="flex-1 overflow-y-auto p-1 space-y-1">
+            <p class="text-xs text-gray-400 text-center py-6">No character boxes created yet. Draw on the image above.</p>
+          </div>
+        </div>
+
+        <!-- Right Side (40%): Whole-Seal Metadata & File Status -->
+        <div class="w-full md:w-[40%] bg-gray-50 p-2.5 flex flex-col justify-between h-full overflow-y-auto">
+          <div>
+            <h3 class="font-bold text-xs text-gray-700 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+              <i class="fa-solid fa-stamp text-amber-600"></i> Whole-Seal Metadata
+            </h3>
+            
+            <div class="space-y-2">
+              <div>
+                <div class="flex justify-between items-center mb-0.5">
+                  <label for="seal-design" class="text-[11px] font-medium text-gray-600">Design Description (design):</label>
+                  <span id="design-count" class="text-[10px] text-gray-400">0 / 250</span>
+                </div>
+                <textarea id="seal-design" rows="2" maxlength="250" placeholder="e.g. 印面有二字，陰文，字體在篆、隸之間..." class="w-full text-xs p-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-amber-500 focus:outline-none bg-white"></textarea>
+              </div>
+
+              <div>
+                <div class="flex justify-between items-center mb-0.5">
+                  <label for="seal-remarks" class="text-[11px] font-medium text-gray-600">Remarks (remarks):</label>
+                  <span id="remarks-count" class="text-[10px] text-gray-400">0 / 250</span>
+                </div>
+                <textarea id="seal-remarks" rows="2" maxlength="250" placeholder="Optional notes or condition remarks" class="w-full text-xs p-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-amber-500 focus:outline-none bg-white"></textarea>
+              </div>
+
+              <div class="flex items-center justify-between pt-1">
+                <div class="flex items-center space-x-2">
+                  <label for="annotation-status" class="text-[11px] font-medium text-gray-600">Status:</label>
+                  <select id="annotation-status" class="text-xs p-1 border border-gray-300 rounded bg-white focus:ring-1 focus:ring-amber-500">
+                    <option value="draft">draft</option>
+                    <option value="in_review">in_review</option>
+                    <option value="completed">completed</option>
+                    <option value="complete">complete</option>
+                  </select>
+                </div>
+
+                <label class="flex items-center space-x-1 cursor-pointer">
+                  <input type="checkbox" id="chk-mark-complete" class="rounded border-gray-300 text-amber-600 focus:ring-amber-500 h-3.5 w-3.5">
+                  <span class="text-[11px] font-medium text-gray-700">Mark Complete</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="pt-2 border-t border-gray-200 mt-2 flex justify-between items-center text-[10px] text-gray-400">
+            <span>Schema: <strong class="text-gray-600">2.0.0</strong></span>
+            <span>Tool: <strong class="text-gray-600">Seal BBox Annotator 2.1.0</strong></span>
+          </div>
+        </div>
+
+      </section>
+
+    </main>
+
+  </div>
+
+  <!-- LIVE TRAINING JSON PREVIEW PANEL (FULL SCREEN WIDTH) -->
+  <section class="w-full px-4 py-4 my-2">
+    <div class="bg-white border border-gray-300 rounded-xl shadow-md overflow-hidden w-full">
+      <div class="px-4 py-3 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-gray-50">
+        <div>
+          <h2 class="font-bold text-sm text-gray-800 uppercase tracking-wide">Live Training JSON Preview</h2>
+          <p id="json-filename" class="text-xs text-gray-500">The output updates after every modification.</p>
+        </div>
+        <div class="flex items-center space-x-2">
+          <button id="btn-copy-json" class="bg-slate-800 hover:bg-slate-700 text-white text-xs px-3 py-1.5 rounded font-medium transition shadow-sm flex items-center gap-1.5">
+            <i class="fa-solid fa-copy"></i> Copy JSON
+          </button>
+          <button id="btn-save-json" class="bg-amber-600 hover:bg-amber-700 text-white text-xs px-3 py-1.5 rounded font-medium transition shadow-sm flex items-center gap-1.5">
+            <i class="fa-solid fa-download"></i> Save JSON
+          </button>
+          <button id="btn-save-next-panel" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3 py-1.5 rounded font-medium transition shadow-sm flex items-center gap-1.5">
+            <i class="fa-solid fa-forward"></i> Save &amp; Next
+          </button>
+        </div>
+      </div>
+      <textarea id="json-output" readonly class="w-full h-80 p-4 bg-slate-900 text-emerald-400 font-mono text-xs resize-y focus:outline-none" spellcheck="false"></textarea>
+    </div>
+  </section>
+
+  <!-- JAVASCRIPT APPLICATION LOGIC -->
+  <script>
+    // 8 Distinct Character Label Colors
+    const CHARACTER_COLORS = [
+      { hex: '#78350f', name: 'Brown',    bg: 'rgba(120, 53, 15, 0.15)' },
+      { hex: '#2563eb', name: 'Blue',     bg: 'rgba(37, 99, 235, 0.15)' },
+      { hex: '#16a34a', name: 'Green',    bg: 'rgba(22, 163, 74, 0.15)' },
+      { hex: '#9333ea', name: 'Purple',   bg: 'rgba(147, 51, 234, 0.15)' },
+      { hex: '#d97706', name: 'Amber',    bg: 'rgba(217, 119, 6, 0.15)' },
+      { hex: '#0d9488', name: 'Teal',     bg: 'rgba(13, 148, 136, 0.15)' },
+      { hex: '#4f46e5', name: 'Indigo',   bg: 'rgba(79, 70, 229, 0.15)' },
+      { hex: '#db2777', name: 'Pink',     bg: 'rgba(219, 39, 119, 0.15)' }
+    ];
+
+    const DRAFT_PREFIX = "seal-bbox-draft-v2.1:";
+
+    function getCharColor(index) {
+      return CHARACTER_COLORS[index % CHARACTER_COLORS.length];
+    }
+
+    // ==========================================
+    // GLOBAL STATE MANAGEMENT
+    // ==========================================
+    const state = {
+      images: [],
+      currentIndex: -1,
+      annotations: [],
+      undoStack: [],
+      redoStack: [],
+      zoom: 1.0,
+      panX: 0,
+      panY: 0,
+      isDrawing: false,
+      isPanning: false,
+      isResizing: false,
+      isMoving: false,
+      hasMovedOrResized: false,
+      startMouseX: 0,
+      startMouseY: 0,
+      drawStartX: 0,
+      drawStartY: 0,
+      currentMouseX: 0,
+      currentMouseY: 0,
+      selectedIndex: -1,
+      activeHandle: null,
+      showCrosshairs: true,
+      touchStartDist: 0,
+      touchStartZoom: 1.0,
+      dirty: false
+    };
+
+    // Canvas elements
+    const wrapper = document.getElementById('canvas-wrapper');
+    const canvas = document.getElementById('annotation-canvas');
+    const ctx = canvas.getContext('2d');
+
+    const DEFAULT_PROVENANCE_TOOL = "Seal Bounding Box Annotator";
+    const DEFAULT_PROVENANCE_VERSION = "2.1.0";
+
+    // ==========================================
+    // UTILITY HELPER FUNCTIONS (SHA256 & EXIF)
+    // ==========================================
+    async function calculateSHA256(file) {
+      if (!window.crypto?.subtle) return null;
+      try {
+        const buffer = await file.arrayBuffer();
+        const digest = await crypto.subtle.digest("SHA-256", buffer);
+        return [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2, "0")).join("");
+      } catch (err) {
+        return null;
+      }
+    }
+
+    async function readJpegExifOrientation(file) {
+      if (!/\.jpe?g$/i.test(file.name)) return null;
+      try {
+        const buffer = await file.slice(0, 512 * 1024).arrayBuffer();
+        const view = new DataView(buffer);
+        if (view.byteLength < 4 || view.getUint16(0, false) !== 0xffd8) return null;
+        let offset = 2;
+        while (offset + 4 < view.byteLength) {
+          const marker = view.getUint16(offset, false);
+          offset += 2;
+          if ((marker & 0xff00) !== 0xff00) break;
+          const length = view.getUint16(offset, false);
+          if (marker === 0xffe1 && offset + length <= view.byteLength) {
+            const exifStart = offset + 2;
+            if (view.getUint32(exifStart, false) !== 0x45786966) return null;
+            const tiff = exifStart + 6;
+            const little = view.getUint16(tiff, false) === 0x4949;
+            const firstIfd = tiff + view.getUint32(tiff + 4, little);
+            const entries = view.getUint16(firstIfd, little);
+            for (let i = 0; i < entries; i++) {
+              const entry = firstIfd + 2 + i * 12;
+              if (entry + 12 > view.byteLength) break;
+              if (view.getUint16(entry, little) === 0x0112) return view.getUint16(entry + 8, little);
+            }
+            return null;
+          }
+          if (length < 2) break;
+          offset += length;
+        }
+      } catch (_) {}
+      return null;
+    }
+
+    function draftKey(imgObj) {
+      if (!imgObj) return null;
+      return `${DRAFT_PREFIX}${imgObj.root_folder}|${imgObj.relative_path}|${imgObj.byte_size}`;
+    }
+
+    function saveDraft(imgObj) {
+      const key = draftKey(imgObj);
+      if (!key) return;
+      try {
+        localStorage.setItem(key, JSON.stringify({
+          annotations: imgObj.annotations,
+          annotation_status: imgObj.annotation_status,
+          design: imgObj.design,
+          remarks: imgObj.remarks,
+          updated_at: imgObj.updated_at
+        }));
+      } catch (_) {}
+    }
+
+    function readDraft(imgObj) {
+      const key = draftKey(imgObj);
+      if (!key) return null;
+      try {
+        return JSON.parse(localStorage.getItem(key));
+      } catch (_) {
+        return null;
+      }
+    }
+
+    function removeDraft(imgObj) {
+      const key = draftKey(imgObj);
+      if (key) {
+        try { localStorage.removeItem(key); } catch (_) {}
+      }
+    }
+
+    function markDirty() {
+      state.dirty = true;
+    }
+
+    // ==========================================
+    // HISTORY UNDO / REDO SYSTEM
+    // ==========================================
+    function pushHistoryState() {
+      if (state.currentIndex === -1) return;
+      
+      const clone = JSON.parse(JSON.stringify(state.annotations));
+      state.undoStack.push(clone);
+      
+      if (state.undoStack.length > 50) {
+        state.undoStack.shift();
+      }
+      
+      state.redoStack = [];
+      updateUndoRedoUI();
+      markDirty();
+    }
+
+    function undo() {
+      if (state.undoStack.length === 0 || state.currentIndex === -1) return;
+
+      const currentClone = JSON.parse(JSON.stringify(state.annotations));
+      state.redoStack.push(currentClone);
+
+      state.annotations = state.undoStack.pop();
+      if (state.selectedIndex >= state.annotations.length) {
+        state.selectedIndex = state.annotations.length - 1;
+      }
+
+      renderCharacterList();
+      redrawCanvas();
+      updateUndoRedoUI();
+      markDirty();
+      updateJSONPreview();
+    }
+
+    function redo() {
+      if (state.redoStack.length === 0 || state.currentIndex === -1) return;
+
+      const currentClone = JSON.parse(JSON.stringify(state.annotations));
+      state.undoStack.push(currentClone);
+
+      state.annotations = state.redoStack.pop();
+      if (state.selectedIndex >= state.annotations.length) {
+        state.selectedIndex = state.annotations.length - 1;
+      }
+
+      renderCharacterList();
+      redrawCanvas();
+      updateUndoRedoUI();
+      markDirty();
+      updateJSONPreview();
+    }
+
+    function updateUndoRedoUI() {
+      const btnUndo = document.getElementById('btn-undo');
+      const btnRedo = document.getElementById('btn-redo');
+
+      if (btnUndo) {
+        btnUndo.disabled = state.undoStack.length === 0;
+        btnUndo.title = `Undo (Ctrl+Z) [${state.undoStack.length}]`;
+      }
+      if (btnRedo) {
+        btnRedo.disabled = state.redoStack.length === 0;
+        btnRedo.title = `Redo (Ctrl+Y) [${state.redoStack.length}]`;
+      }
+    }
+
+    function resetHistory() {
+      state.undoStack = [];
+      state.redoStack = [];
+      updateUndoRedoUI();
+    }
+
+    // ==========================================
+    // APPLICATION INITIALIZATION & EVENT LISTENERS
+    // ==========================================
+    window.addEventListener('DOMContentLoaded', () => {
+      setupEventListeners();
+      resizeCanvas();
+      window.addEventListener('resize', resizeCanvas);
+      renderQueueList();
+      updateJSONPreview();
+    });
+
+    function resizeCanvas() {
+      if (!wrapper) return;
+      canvas.width = wrapper.clientWidth;
+      canvas.height = wrapper.clientHeight;
+      redrawCanvas();
+    }
+
+    function setupEventListeners() {
+      document.getElementById('btn-toggle-sidebar').addEventListener('click', () => {
+        document.getElementById('sidebar').classList.remove('-translate-x-full');
+      });
+      document.getElementById('btn-close-sidebar').addEventListener('click', () => {
+        document.getElementById('sidebar').classList.add('-translate-x-full');
+      });
+
+      document.getElementById('btn-open-folder').addEventListener('click', () => document.getElementById('input-folder').click());
+      document.getElementById('btn-open-files').addEventListener('click', () => document.getElementById('input-files').click());
+      
+      document.getElementById('input-folder').addEventListener('change', (e) => handleFilesSelected(e.target.files));
+      document.getElementById('input-files').addEventListener('change', (e) => handleFilesSelected(e.target.files));
+
+      const dropZone = document.getElementById('drop-zone');
+      dropZone.addEventListener('click', () => document.getElementById('input-files').click());
+      dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('border-amber-500', 'bg-amber-50'); });
+      dropZone.addEventListener('dragleave', () => { dropZone.classList.remove('border-amber-500', 'bg-amber-50'); });
+      dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('border-amber-500', 'bg-amber-50');
+        if (e.dataTransfer.files.length) handleFilesSelected(e.dataTransfer.files);
+      });
+
+      document.getElementById('btn-prev-img').addEventListener('click', () => navigateImage(-1));
+      document.getElementById('btn-next-img').addEventListener('click', () => navigateImage(1));
+      document.getElementById('filter-input').addEventListener('input', renderQueueList);
+
+      document.getElementById('btn-undo').addEventListener('click', undo);
+      document.getElementById('btn-redo').addEventListener('click', redo);
+
+      document.getElementById('btn-zoom-in').addEventListener('click', () => zoomCanvas(1.2));
+      document.getElementById('btn-zoom-out').addEventListener('click', () => zoomCanvas(1 / 1.2));
+      document.getElementById('btn-zoom-reset').addEventListener('click', resetView);
+      document.getElementById('btn-toggle-crosshairs').addEventListener('click', function() {
+        state.showCrosshairs = !state.showCrosshairs;
+        this.classList.toggle('bg-amber-600/80', state.showCrosshairs);
+        this.classList.toggle('bg-slate-700', !state.showCrosshairs);
+        redrawCanvas();
+      });
+
+      wrapper.addEventListener('contextmenu', e => e.preventDefault());
+      wrapper.addEventListener('mousedown', handleMouseDown);
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+      wrapper.addEventListener('wheel', handleWheel, { passive: false });
+
+      wrapper.addEventListener('touchstart', handleTouchStart, { passive: false });
+      wrapper.addEventListener('touchmove', handleTouchMove, { passive: false });
+      wrapper.addEventListener('touchend', handleTouchEnd);
+
+      window.addEventListener('keydown', handleKeyDown);
+
+      const designInput = document.getElementById('seal-design');
+      const remarksInput = document.getElementById('seal-remarks');
+      const markCompleteChk = document.getElementById('chk-mark-complete');
+      const statusSelect = document.getElementById('annotation-status');
+
+      designInput.addEventListener('input', () => {
+        document.getElementById('design-count').textContent = `${designInput.value.length} / 250`;
+        saveCurrentMetadataToState();
+        updateJSONPreview();
+      });
+
+      remarksInput.addEventListener('input', () => {
+        document.getElementById('remarks-count').textContent = `${remarksInput.value.length} / 250`;
+        saveCurrentMetadataToState();
+        updateJSONPreview();
+      });
+
+      markCompleteChk.addEventListener('change', () => {
+        if (markCompleteChk.checked) {
+          statusSelect.value = 'complete';
+        } else if (statusSelect.value === 'complete') {
+          statusSelect.value = 'draft';
+        }
+        saveCurrentMetadataToState();
+        updateJSONPreview();
+      });
+
+      statusSelect.addEventListener('change', () => {
+        markCompleteChk.checked = (statusSelect.value === 'complete' || statusSelect.value === 'completed');
+        saveCurrentMetadataToState();
+        updateJSONPreview();
+      });
+
+      document.getElementById('btn-add-char').addEventListener('click', addNewCharAnnotation);
+      document.getElementById('btn-run-ai').addEventListener('click', runAIPlaceholderDetection);
+      document.getElementById('btn-export-json').addEventListener('click', () => saveCurrentJSON(false));
+      
+      // JSON Panel Actions
+      document.getElementById('btn-copy-json').addEventListener('click', copyJSONPreview);
+      document.getElementById('btn-save-json').addEventListener('click', () => saveCurrentJSON(false));
+      document.getElementById('btn-save-next-panel').addEventListener('click', () => saveCurrentJSON(true));
+
+      document.getElementById('btn-import-json').addEventListener('click', () => document.getElementById('input-import-json').click());
+      document.getElementById('input-import-json').addEventListener('change', importJSON);
+
+      // Unsaved changes confirmation
+      window.addEventListener('beforeunload', (e) => {
+        if (!state.dirty) return;
+        e.preventDefault();
+        e.returnValue = "";
+      });
+    }
+
+    // ==========================================
+    // FILE MANAGEMENT & QUEUE HANDLING
+    // ==========================================
+    async function handleFilesSelected(files) {
+      const fileList = Array.from(files).filter(f => f.type.startsWith('image/'));
+      if (!fileList.length) return;
+
+      for (const file of fileList) {
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        
+        await new Promise((resolve) => {
+          img.onload = async () => {
+            const relativePath = file.webkitRelativePath || file.name;
+            const folderParts = relativePath.split('/');
+            const rootFolder = folderParts.length > 1 ? folderParts[0] : 'Seal_DATA';
+
+            const sha256 = await calculateSHA256(file);
+            const exif = await readJpegExifOrientation(file);
+
+            const imgObj = {
+              fileRef: file,
+              file_name: file.name,
+              root_folder: rootFolder,
+              relative_path: relativePath,
+              format: file.type.split('/')[1]?.toUpperCase() || 'JPEG',
+              mime_type: file.type || 'image/jpeg',
+              width: img.naturalWidth,
+              height: img.naturalHeight,
+              byte_size: file.size,
+              last_modified: new Date(file.lastModified).toISOString(),
+              sha256: sha256,
+              exif_orientation: exif,
+              imgElement: img,
+              annotations: [],
+              design: "",
+              remarks: "",
+              annotation_status: "draft",
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            };
+
+            state.images.push(imgObj);
+            resolve();
+          };
+          img.src = url;
+        });
+      }
+
+      renderQueueList();
+      if (state.currentIndex === -1 && state.images.length > 0) {
+        loadImageIndex(0);
+      }
+    }
+
+    function renderQueueList() {
+      const queueList = document.getElementById('queue-list');
+      const filter = document.getElementById('filter-input').value.toLowerCase();
+      const filtered = state.images.filter(img => img.file_name.toLowerCase().includes(filter));
+
+      document.getElementById('queue-count').textContent = state.images.length;
+      document.getElementById('btn-prev-img').disabled = state.currentIndex <= 0;
+      document.getElementById('btn-next-img').disabled = state.currentIndex >= state.images.length - 1;
+
+      if (!filtered.length) {
+        queueList.innerHTML = `<p class="text-xs text-gray-400 text-center py-8">No matching images</p>`;
+        return;
+      }
+
+      queueList.innerHTML = filtered.map((img) => {
+        const originalIndex = state.images.indexOf(img);
+        const isActive = originalIndex === state.currentIndex;
+        const isComplete = img.annotation_status === "complete" || img.annotation_status === "completed";
+        return `
+          <div onclick="loadImageIndex(${originalIndex})" class="p-1.5 rounded text-xs flex items-center justify-between cursor-pointer border transition ${isActive ? 'bg-amber-50 border-amber-400 font-semibold text-amber-700' : 'bg-white hover:bg-gray-50 border-gray-200 text-gray-700'}">
+            <div class="flex items-center space-x-2 truncate">
+              <i class="fa-regular fa-image ${isActive ? 'text-amber-600' : 'text-gray-400'}"></i>
+              <span class="truncate">${img.file_name}</span>
+            </div>
+            <div class="flex items-center gap-1">
+              ${isComplete ? '<span class="text-[9px] bg-emerald-100 text-emerald-700 px-1 rounded font-bold">✓</span>' : ''}
+              <span class="text-[10px] px-1.5 py-0.2 rounded ${img.annotations.length ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}">
+                ${img.annotations.length} box
+              </span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function navigateImage(delta) {
+      const newIdx = state.currentIndex + delta;
+      if (newIdx >= 0 && newIdx < state.images.length) {
+        loadImageIndex(newIdx);
+      }
+    }
+
+    async function loadImageIndex(index) {
+      if (index < 0 || index >= state.images.length) return;
+      
+      saveCurrentMetadataToState();
+
+      state.currentIndex = index;
+      const current = state.images[index];
+
+      const draft = readDraft(current);
+      if (draft && draft.annotations && !current.annotations.length) {
+        current.annotations = draft.annotations;
+        current.design = draft.design || "";
+        current.remarks = draft.remarks || "";
+        current.annotation_status = draft.annotation_status || "draft";
+      }
+
+      state.annotations = current.annotations || [];
+      state.selectedIndex = -1;
+
+      resetHistory();
+
+      document.getElementById('meta-filename').textContent = current.file_name;
+      document.getElementById('meta-path').textContent = current.relative_path;
+      document.getElementById('meta-format').textContent = `${current.format} (${current.mime_type})`;
+      document.getElementById('meta-dim').textContent = `${current.width} x ${current.height} px`;
+      document.getElementById('meta-bytes').textContent = `${(current.byte_size / 1024).toFixed(1)} KB`;
+      document.getElementById('meta-sha256').textContent = current.sha256 ? `${current.sha256.slice(0, 12)}…` : '-';
+      document.getElementById('meta-sha256').title = current.sha256 || '';
+      document.getElementById('meta-exif').textContent = current.exif_orientation !== null ? current.exif_orientation : 'Not present';
+
+      document.getElementById('seal-design').value = current.design || "";
+      document.getElementById('design-count').textContent = `${(current.design || "").length} / 250`;
+      
+      document.getElementById('seal-remarks').value = current.remarks || "";
+      document.getElementById('remarks-count').textContent = `${(current.remarks || "").length} / 250`;
+
+      document.getElementById('annotation-status').value = current.annotation_status || "draft";
+      document.getElementById('chk-mark-complete').checked = (current.annotation_status === 'complete' || current.annotation_status === 'completed');
+
+      renderQueueList();
+      renderCharacterList();
+      resetView();
+      updateJSONPreview();
+    }
+
+    function saveCurrentMetadataToState() {
+      if (state.currentIndex >= 0 && state.images[state.currentIndex]) {
+        const cur = state.images[state.currentIndex];
+        cur.design = document.getElementById('seal-design').value;
+        cur.remarks = document.getElementById('seal-remarks').value;
+        cur.annotation_status = document.getElementById('annotation-status').value;
+        cur.annotations = state.annotations;
+        cur.updated_at = new Date().toISOString();
+        saveDraft(cur);
+        markDirty();
+      }
+    }
+
+    // ==========================================
+    // BOUNDARY CLAMPING HELPER
+    // ==========================================
+    function clampBBox(bbox, imgWidth, imgHeight) {
+      let [xmin, ymin, xmax, ymax] = bbox;
+      xmin = Math.max(0, Math.min(xmin, imgWidth));
+      ymin = Math.max(0, Math.min(ymin, imgHeight));
+      xmax = Math.max(0, Math.min(xmax, imgWidth));
+      ymax = Math.max(0, Math.min(ymax, imgHeight));
+      if (xmin > xmax) [xmin, xmax] = [xmax, xmin];
+      if (ymin > ymax) [ymin, ymax] = [ymax, ymin];
+      return [xmin, ymin, xmax, ymax];
+    }
+
+    // ==========================================
+    // CANVAS DRAWING & COORDINATE CONVERSIONS
+    // ==========================================
+    function resetView() {
+      if (state.currentIndex === -1) return;
+      const img = state.images[state.currentIndex].imgElement;
+      
+      const padding = 20;
+      const availableW = canvas.width - padding * 2;
+      const availableH = canvas.height - padding * 2;
+      
+      const scaleW = availableW / img.naturalWidth;
+      const scaleH = availableH / img.naturalHeight;
+      state.zoom = Math.min(scaleW, scaleH, 1.5);
+
+      state.panX = (canvas.width - img.naturalWidth * state.zoom) / 2;
+      state.panY = (canvas.height - img.naturalHeight * state.zoom) / 2;
+
+      document.getElementById('zoom-level-text').textContent = `${Math.round(state.zoom * 100)}%`;
+      redrawCanvas();
+    }
+
+    function zoomCanvas(factor) {
+      const newZoom = Math.min(Math.max(state.zoom * factor, 0.1), 10.0);
+      
+      const centerX = canvas.width / 2;
+      const centerY = canvas.height / 2;
+
+      state.panX = centerX - (centerX - state.panX) * (newZoom / state.zoom);
+      state.panY = centerY - (centerY - state.panY) * (newZoom / state.zoom);
+      state.zoom = newZoom;
+
+      document.getElementById('zoom-level-text').textContent = `${Math.round(state.zoom * 100)}%`;
+      redrawCanvas();
+    }
+
+    function screenToImageCoords(screenX, screenY) {
+      if (state.currentIndex === -1) return { x: 0, y: 0 };
+      const img = state.images[state.currentIndex];
+      const imgX = (screenX - state.panX) / state.zoom;
+      const imgY = (screenY - state.panY) / state.zoom;
+      return {
+        x: Math.max(0, Math.min(Math.round(imgX), img.width)),
+        y: Math.max(0, Math.min(Math.round(imgY), img.height))
+      };
+    }
+
+    function imageToScreenCoords(imgX, imgY) {
+      const screenX = imgX * state.zoom + state.panX;
+      const screenY = imgY * state.zoom + state.panY;
+      return { x: screenX, y: screenY };
+    }
+
+    function redrawCanvas() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      if (state.currentIndex === -1) {
+        ctx.fillStyle = "#64748b";
+        ctx.font = "14px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("Load an image or folder to start annotation", canvas.width / 2, canvas.height / 2);
+        return;
+      }
+
+      const img = state.images[state.currentIndex].imgElement;
+
+      ctx.save();
+      ctx.translate(state.panX, state.panY);
+      ctx.scale(state.zoom, state.zoom);
+      ctx.drawImage(img, 0, 0);
+      ctx.restore();
+
+      state.annotations.forEach((ann, idx) => {
+        const isSelected = idx === state.selectedIndex;
+        const color = getCharColor(idx);
+        const [xmin, ymin, xmax, ymax] = ann.bbox;
+
+        const pMin = imageToScreenCoords(xmin, ymin);
+        const pMax = imageToScreenCoords(xmax, ymax);
+        const boxW = pMax.x - pMin.x;
+        const boxH = pMax.y - pMin.y;
+
+        ctx.strokeStyle = color.hex;
+        ctx.lineWidth = isSelected ? 3.0 : 1.5;
+        ctx.fillStyle = isSelected ? color.bg : 'rgba(255, 255, 255, 0.05)';
+        
+        ctx.fillRect(pMin.x, pMin.y, boxW, boxH);
+        ctx.strokeRect(pMin.x, pMin.y, boxW, boxH);
+
+        const labelText = `#${ann.order + 1} ${ann.inscription || '?'}`;
+        ctx.font = 'bold 12px sans-serif';
+        const textWidth = ctx.measureText(labelText).width;
+        
+        ctx.fillStyle = color.hex;
+        ctx.fillRect(pMin.x, pMin.y - 20 < 0 ? pMin.y : pMin.y - 20, textWidth + 10, 20);
+        
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(labelText, pMin.x + 5, (pMin.y - 20 < 0 ? pMin.y : pMin.y - 20) + 14);
+
+        if (isSelected) {
+          const midX = pMin.x + boxW / 2;
+          const midY = pMin.y + boxH / 2;
+
+          drawSquareHandle(pMin.x, pMin.y, color.hex);
+          drawSquareHandle(pMax.x, pMin.y, color.hex);
+          drawSquareHandle(pMin.x, pMax.y, color.hex);
+          drawSquareHandle(pMax.x, pMax.y, color.hex);
+
+          drawRectHandle(pMin.x, midY, 6, 12, color.hex);
+          drawRectHandle(pMax.x, midY, 6, 12, color.hex);
+          drawRectHandle(midX, pMin.y, 12, 6, color.hex);
+          drawRectHandle(midX, pMax.y, 12, 6, color.hex);
+        }
+      });
+
+      if (state.showCrosshairs && state.currentMouseX && state.currentMouseY) {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(20, 83, 45, 0.9)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]);
+
+        ctx.beginPath();
+        ctx.moveTo(0, state.currentMouseY);
+        ctx.lineTo(canvas.width, state.currentMouseY);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(state.currentMouseX, 0);
+        ctx.lineTo(state.currentMouseX, canvas.height);
+        ctx.stroke();
+
+        ctx.restore();
+      }
+    }
+
+    function drawSquareHandle(x, y, strokeHex) {
+      const size = 8;
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = strokeHex;
+      ctx.lineWidth = 2;
+      ctx.fillRect(x - size / 2, y - size / 2, size, size);
+      ctx.strokeRect(x - size / 2, y - size / 2, size, size);
+    }
+
+    function drawRectHandle(x, y, w, h, strokeHex) {
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = strokeHex;
+      ctx.lineWidth = 2;
+      ctx.fillRect(x - w / 2, y - h / 2, w, h);
+      ctx.strokeRect(x - w / 2, y - h / 2, w, h);
+    }
+
+    // ==========================================
+    // MOUSE & TOUCH INTERACTION LOGIC
+    // ==========================================
+    function handleMouseDown(e) {
+      if (state.currentIndex === -1) return;
+      const rect = wrapper.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+
+      state.startMouseX = mouseX;
+      state.startMouseY = mouseY;
+      state.hasMovedOrResized = false;
+
+      if (e.button === 2) {
+        state.isPanning = true;
+        return;
+      }
+
+      if (e.button !== 0) return;
+
+      if (state.selectedIndex !== -1) {
+        const handle = hitTestHandles(mouseX, mouseY, state.annotations[state.selectedIndex]);
+        if (handle) {
+          pushHistoryState();
+          state.isResizing = true;
+          state.activeHandle = handle;
+          return;
+        }
+      }
+
+      const hitIndex = hitTestBoxes(mouseX, mouseY);
+      if (hitIndex !== -1) {
+        state.selectedIndex = hitIndex;
+        state.isMoving = true;
+        updateListSelectionUI();
+        redrawCanvas();
+        return;
+      }
+
+      state.selectedIndex = -1;
+      state.isDrawing = true;
+      const imgPos = screenToImageCoords(mouseX, mouseY);
+      state.drawStartX = imgPos.x;
+      state.drawStartY = imgPos.y;
+      updateListSelectionUI();
+    }
+
+    function handleMouseMove(e) {
+      const rect = wrapper.getBoundingClientRect();
+      state.currentMouseX = e.clientX - rect.left;
+      state.currentMouseY = e.clientY - rect.top;
+
+      const imgCoords = screenToImageCoords(state.currentMouseX, state.currentMouseY);
+      document.getElementById('cursor-coords').textContent = `X: ${imgCoords.x}, Y: ${imgCoords.y}`;
+
+      if (state.isPanning) {
+        state.panX += state.currentMouseX - state.startMouseX;
+        state.panY += state.currentMouseY - state.startMouseY;
+        state.startMouseX = state.currentMouseX;
+        state.startMouseY = state.currentMouseY;
+        redrawCanvas();
+        return;
+      }
+
+      if (state.isDrawing) {
+        redrawCanvas();
+        const pMin = imageToScreenCoords(state.drawStartX, state.drawStartY);
+        ctx.strokeStyle = '#d97706';
+        ctx.setLineDash([6, 3]);
+        ctx.strokeRect(pMin.x, pMin.y, state.currentMouseX - pMin.x, state.currentMouseY - pMin.y);
+        ctx.setLineDash([]);
+        return;
+      }
+
+      if (state.isMoving && state.selectedIndex !== -1) {
+        const img = state.images[state.currentIndex];
+        const dx = Math.round((state.currentMouseX - state.startMouseX) / state.zoom);
+        const dy = Math.round((state.currentMouseY - state.startMouseY) / state.zoom);
+        if (dx !== 0 || dy !== 0) {
+          if (!state.hasMovedOrResized) {
+            pushHistoryState();
+            state.hasMovedOrResized = true;
+          }
+
+          const bbox = state.annotations[state.selectedIndex].bbox;
+          const w = bbox[2] - bbox[0];
+          const h = bbox[3] - bbox[1];
+          
+          let newXmin = bbox[0] + dx;
+          let newYmin = bbox[1] + dy;
+          let newXmax = newXmin + w;
+          let newYmax = newYmin + h;
+
+          if (newXmin < 0) { newXmin = 0; newXmax = w; }
+          if (newYmin < 0) { newYmin = 0; newYmax = h; }
+          if (newXmax > img.width) { newXmax = img.width; newXmin = img.width - w; }
+          if (newYmax > img.height) { newYmax = img.height; newYmin = img.height - h; }
+
+          bbox[0] = newXmin;
+          bbox[1] = newYmin;
+          bbox[2] = newXmax;
+          bbox[3] = newYmax;
+
+          state.startMouseX = state.currentMouseX;
+          state.startMouseY = state.currentMouseY;
+          updateCharacterInputsUI(state.selectedIndex);
+          redrawCanvas();
+          saveCurrentMetadataToState();
+          updateJSONPreview();
+        }
+        return;
+      }
+
+      if (state.isResizing && state.selectedIndex !== -1) {
+        const img = state.images[state.currentIndex];
+        const imgPos = screenToImageCoords(state.currentMouseX, state.currentMouseY);
+        const bbox = state.annotations[state.selectedIndex].bbox;
+
+        if (state.activeHandle === 'left') { bbox[0] = Math.min(imgPos.x, bbox[2] - 1); }
+        else if (state.activeHandle === 'right') { bbox[2] = Math.max(imgPos.x, bbox[0] + 1); }
+        else if (state.activeHandle === 'top') { bbox[1] = Math.min(imgPos.y, bbox[3] - 1); }
+        else if (state.activeHandle === 'bottom') { bbox[3] = Math.max(imgPos.y, bbox[1] + 1); }
+        else if (state.activeHandle === 'tl') { bbox[0] = Math.min(imgPos.x, bbox[2] - 1); bbox[1] = Math.min(imgPos.y, bbox[3] - 1); }
+        else if (state.activeHandle === 'tr') { bbox[2] = Math.max(imgPos.x, bbox[0] + 1); bbox[1] = Math.min(imgPos.y, bbox[3] - 1); }
+        else if (state.activeHandle === 'bl') { bbox[0] = Math.min(imgPos.x, bbox[2] - 1); bbox[3] = Math.max(imgPos.y, bbox[1] + 1); }
+        else if (state.activeHandle === 'br') { bbox[2] = Math.max(imgPos.x, bbox[0] + 1); bbox[3] = Math.max(imgPos.y, bbox[1] + 1); }
+
+        state.annotations[state.selectedIndex].bbox = clampBBox(bbox, img.width, img.height);
+
+        updateCharacterInputsUI(state.selectedIndex);
+        redrawCanvas();
+        saveCurrentMetadataToState();
+        updateJSONPreview();
+        return;
+      }
+
+      if (state.selectedIndex !== -1) {
+        const handle = hitTestHandles(state.currentMouseX, state.currentMouseY, state.annotations[state.selectedIndex]);
+        if (handle === 'left' || handle === 'right') wrapper.style.cursor = 'ew-resize';
+        else if (handle === 'top' || handle === 'bottom') wrapper.style.cursor = 'ns-resize';
+        else if (handle === 'tl' || handle === 'br') wrapper.style.cursor = 'nwse-resize';
+        else if (handle === 'tr' || handle === 'bl') wrapper.style.cursor = 'nesw-resize';
+        else wrapper.style.cursor = 'crosshair';
+      } else {
+        wrapper.style.cursor = 'crosshair';
+      }
+
+      redrawCanvas();
+    }
+
+    function handleMouseUp() {
+      if (state.isDrawing) {
+        state.isDrawing = false;
+        const img = state.images[state.currentIndex];
+        const imgPos = screenToImageCoords(state.currentMouseX, state.currentMouseY);
+        
+        let xmin = Math.min(state.drawStartX, imgPos.x);
+        let ymin = Math.min(state.drawStartY, imgPos.y);
+        let xmax = Math.max(state.drawStartX, imgPos.x);
+        let ymax = Math.max(state.drawStartY, imgPos.y);
+
+        [xmin, ymin, xmax, ymax] = clampBBox([xmin, ymin, xmax, ymax], img.width, img.height);
+
+        if (xmax - xmin > 5 && ymax - ymin > 5) {
+          pushHistoryState();
+
+          const newOrder = state.annotations.length;
+          const newChar = {
+            id: `char-${String(newOrder + 1).padStart(4, '0')}`,
+            type: "character",
+            category_id: 0,
+            order: newOrder,
+            bbox: [xmin, ymin, xmax, ymax],
+            inscription: "",
+            transcription: "",
+            legibility: "unreviewed"
+          };
+          state.annotations.push(newChar);
+          state.selectedIndex = state.annotations.length - 1;
+          renderCharacterList();
+          saveCurrentMetadataToState();
+          updateJSONPreview();
+        }
+      }
+
+      state.isPanning = false;
+      state.isMoving = false;
+      state.isResizing = false;
+      state.hasMovedOrResized = false;
+      state.activeHandle = null;
+      redrawCanvas();
+    }
+
+    function handleWheel(e) {
+      e.preventDefault();
+      const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
+      zoomCanvas(zoomFactor);
+    }
+
+    function handleTouchStart(e) {
+      if (e.touches.length === 2) {
+        state.isPanning = true;
+        state.touchStartDist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        state.touchStartZoom = state.zoom;
+      } else if (e.touches.length === 1) {
+        const touch = e.touches[0];
+        handleMouseDown({ clientX: touch.clientX, clientY: touch.clientY, button: 0 });
+      }
+    }
+
+    function handleTouchMove(e) {
+      if (e.touches.length === 2 && state.isPanning) {
+        e.preventDefault();
+        const dist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        const factor = dist / state.touchStartDist;
+        state.zoom = Math.min(Math.max(state.touchStartZoom * factor, 0.2), 8.0);
+        document.getElementById('zoom-level-text').textContent = `${Math.round(state.zoom * 100)}%`;
+        redrawCanvas();
+      } else if (e.touches.length === 1) {
+        const touch = e.touches[0];
+        handleMouseMove({ clientX: touch.clientX, clientY: touch.clientY });
+      }
+    }
+
+    function handleTouchEnd() {
+      handleMouseUp();
+    }
+
+    function hitTestBoxes(screenX, screenY) {
+      for (let i = state.annotations.length - 1; i >= 0; i--) {
+        const [xmin, ymin, xmax, ymax] = state.annotations[i].bbox;
+        const pMin = imageToScreenCoords(xmin, ymin);
+        const pMax = imageToScreenCoords(xmax, ymax);
+        if (screenX >= pMin.x && screenX <= pMax.x && screenY >= pMin.y && screenY <= pMax.y) {
+          return i;
+        }
+      }
+      return -1;
+    }
+
+    function hitTestHandles(screenX, screenY, ann) {
+      const [xmin, ymin, xmax, ymax] = ann.bbox;
+      const pMin = imageToScreenCoords(xmin, ymin);
+      const pMax = imageToScreenCoords(xmax, ymax);
+      const midX = (pMin.x + pMax.x) / 2;
+      const midY = (pMin.y + pMax.y) / 2;
+      const radius = 10;
+
+      if (Math.hypot(screenX - pMin.x, screenY - pMin.y) <= radius) return 'tl';
+      if (Math.hypot(screenX - pMax.x, screenY - pMin.y) <= radius) return 'tr';
+      if (Math.hypot(screenX - pMin.x, screenY - pMax.y) <= radius) return 'bl';
+      if (Math.hypot(screenX - pMax.x, screenY - pMax.y) <= radius) return 'br';
+
+      if (Math.hypot(screenX - pMin.x, screenY - midY) <= radius) return 'left';
+      if (Math.hypot(screenX - pMax.x, screenY - midY) <= radius) return 'right';
+      if (Math.hypot(screenX - midX, screenY - pMin.y) <= radius) return 'top';
+      if (Math.hypot(screenX - midX, screenY - pMax.y) <= radius) return 'bottom';
+
+      return null;
+    }
+
+    function handleKeyDown(e) {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        if (e.shiftKey) redo(); else undo();
+        e.preventDefault();
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+        redo();
+        e.preventDefault();
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        saveCurrentJSON(false);
+        return;
+      }
+
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) return;
+
+      if (state.selectedIndex !== -1) {
+        const img = state.images[state.currentIndex];
+        const step = e.shiftKey ? 10 : 1;
+        const bbox = state.annotations[state.selectedIndex].bbox;
+
+        if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
+          pushHistoryState();
+        }
+
+        if (e.key === 'ArrowLeft') { bbox[0] -= step; bbox[2] -= step; }
+        else if (e.key === 'ArrowRight') { bbox[0] += step; bbox[2] += step; }
+        else if (e.key === 'ArrowUp') { bbox[1] -= step; bbox[3] -= step; }
+        else if (e.key === 'ArrowDown') { bbox[1] += step; bbox[3] += step; }
+        else if (e.key === 'Delete' || e.key === 'Backspace') {
+          deleteCharacter(state.selectedIndex);
+          return;
+        } else return;
+
+        e.preventDefault();
+        state.annotations[state.selectedIndex].bbox = clampBBox(bbox, img.width, img.height);
+        updateCharacterInputsUI(state.selectedIndex);
+        redrawCanvas();
+        saveCurrentMetadataToState();
+        updateJSONPreview();
+      }
+    }
+
+    // ==========================================
+    // CHARACTER ANNOTATION LIST & REORDERING
+    // ==========================================
+    function addNewCharAnnotation() {
+      if (state.currentIndex === -1) return;
+      pushHistoryState();
+
+      const img = state.images[state.currentIndex];
+      const newOrder = state.annotations.length;
+
+      const w = Math.round(img.width * 0.3);
+      const h = Math.round(img.height * 0.3);
+      const xmin = Math.round((img.width - w) / 2);
+      const ymin = Math.round((img.height - h) / 2);
+
+      const clampedBBox = clampBBox([xmin, ymin, xmin + w, ymin + h], img.width, img.height);
+
+      state.annotations.push({
+        id: `char-${String(newOrder + 1).padStart(4, '0')}`,
+        type: "character",
+        category_id: 0,
+        order: newOrder,
+        bbox: clampedBBox,
+        inscription: "",
+        transcription: "",
+        legibility: "unreviewed"
+      });
+
+      state.selectedIndex = state.annotations.length - 1;
+      renderCharacterList();
+      redrawCanvas();
+      saveCurrentMetadataToState();
+      updateJSONPreview();
+    }
+
+    function renderCharacterList() {
+      const container = document.getElementById('char-list-container');
+      document.getElementById('char-count').textContent = state.annotations.length;
+
+      if (!state.annotations.length) {
+        container.innerHTML = `<p class="text-xs text-gray-400 text-center py-6">No character boxes created yet. Draw on the image above.</p>`;
+        return;
+      }
+
+      container.innerHTML = state.annotations.map((char, idx) => {
+        const isSelected = idx === state.selectedIndex;
+        const color = getCharColor(idx);
+        const bboxStr = `${char.bbox[0]},${char.bbox[1]},${char.bbox[2]},${char.bbox[3]}`;
+
+        return `
+          <div data-index="${idx}" onclick="selectCharFromRowClick(event, ${idx})" class="char-row grid grid-cols-12 gap-1 items-center px-2 py-1.5 rounded text-xs border transition ${isSelected ? 'bg-amber-50 border-amber-300 ring-1 ring-amber-400' : 'bg-white hover:bg-gray-50 border-gray-200'}">
+            <!-- Order & Drag Handle Icon -->
+            <div class="col-span-1 flex items-center justify-center space-x-1">
+              <i class="fa-solid fa-grip-vertical text-gray-400 drag-handle text-[11px] p-1 cursor-grab" draggable="true"></i>
+              <span class="font-bold text-white px-1.5 py-0.5 rounded text-[10px]" style="background-color: ${color.hex}">${idx + 1}</span>
+            </div>
+
+            <!-- Inscription -->
+            <div class="col-span-2">
+              <input type="text" value="${char.inscription || ''}" onfocus="pushHistoryState()" oninput="updateCharProp(${idx}, 'inscription', this.value)" placeholder="刻字" class="w-full text-xs p-1 border border-gray-300 rounded focus:ring-1 focus:ring-amber-500 font-serif text-center">
+            </div>
+
+            <!-- Transcription -->
+            <div class="col-span-2">
+              <input type="text" value="${char.transcription || ''}" onfocus="pushHistoryState()" oninput="updateCharProp(${idx}, 'transcription', this.value)" placeholder="釋文" class="w-full text-xs p-1 border border-gray-300 rounded focus:ring-1 focus:ring-amber-500 text-center">
+            </div>
+
+            <!-- Legibility Dropdown (Partially option removed) -->
+            <div class="col-span-3">
+              <select onfocus="pushHistoryState()" onchange="updateCharProp(${idx}, 'legibility', this.value)" class="w-full text-[11px] p-1 border border-gray-300 rounded bg-white focus:ring-1 focus:ring-amber-500">
+                <option value="unreviewed" ${char.legibility === 'unreviewed' ? 'selected' : ''}>unreviewed</option>
+                <option value="legible" ${char.legibility === 'legible' ? 'selected' : ''}>legible</option>
+                <option value="illegible" ${char.legibility === 'illegible' ? 'selected' : ''}>illegible</option>
+                <option value="uncertain" ${char.legibility === 'uncertain' ? 'selected' : ''}>uncertain</option>
+                <option value="damaged" ${char.legibility === 'damaged' ? 'selected' : ''}>damaged</option>
+              </select>
+            </div>
+
+            <!-- Bounding Box Coords Input -->
+            <div class="col-span-3">
+              <input type="text" id="bbox-input-${idx}" value="${bboxStr}" onfocus="pushHistoryState()" onchange="updateCharBBox(${idx}, this.value)" class="w-full text-[10px] font-mono p-1 border border-gray-300 rounded text-center">
+            </div>
+
+            <!-- Delete Button -->
+            <div class="col-span-1 text-center">
+              <button onclick="deleteCharacter(${idx})" class="text-gray-400 hover:text-red-600 p-1"><i class="fa-solid fa-trash-can"></i></button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      setupDragAndDropReorder();
+    }
+
+    function selectCharFromRowClick(e, idx) {
+      if (['INPUT', 'SELECT', 'BUTTON', 'I'].includes(e.target.tagName)) return;
+      state.selectedIndex = idx;
+      updateListSelectionUI();
+      redrawCanvas();
+    }
+
+    function updateListSelectionUI() {
+      const rows = document.querySelectorAll('#char-list-container > .char-row');
+      rows.forEach((row, idx) => {
+        const isSelected = idx === state.selectedIndex;
+        if (isSelected) {
+          row.className = "char-row grid grid-cols-12 gap-1 items-center px-2 py-1.5 rounded text-xs border transition bg-amber-50 border-amber-300 ring-1 ring-amber-400";
+        } else {
+          row.className = "char-row grid grid-cols-12 gap-1 items-center px-2 py-1.5 rounded text-xs border transition bg-white hover:bg-gray-50 border-gray-200";
+        }
+      });
+    }
+
+    function updateCharProp(idx, key, val) {
+      if (state.annotations[idx]) {
+        state.annotations[idx][key] = val;
+        if (key === 'inscription' && !state.annotations[idx].transcription) {
+          state.annotations[idx].transcription = val;
+          const transInput = document.querySelector(`.char-row[data-index="${idx}"] input[placeholder="釋文"]`);
+          if (transInput) transInput.value = val;
+        }
+        redrawCanvas();
+        saveCurrentMetadataToState();
+        updateJSONPreview();
+      }
+    }
+
+    function updateCharBBox(idx, str) {
+      if (state.currentIndex === -1) return;
+      const img = state.images[state.currentIndex];
+      const coords = str.split(',').map(n => parseInt(n.trim(), 10));
+      if (coords.length === 4 && coords.every(n => !isNaN(n))) {
+        state.annotations[idx].bbox = clampBBox(coords, img.width, img.height);
+        updateCharacterInputsUI(idx);
+        redrawCanvas();
+        saveCurrentMetadataToState();
+        updateJSONPreview();
+      }
+    }
+
+    function updateCharacterInputsUI(idx) {
+      const input = document.getElementById(`bbox-input-${idx}`);
+      if (input && state.annotations[idx]) {
+        input.value = state.annotations[idx].bbox.join(',');
+      }
+    }
+
+    function deleteCharacter(idx) {
+      pushHistoryState();
+      state.annotations.splice(idx, 1);
+      reindexCharacterOrders();
+      state.selectedIndex = -1;
+      renderCharacterList();
+      redrawCanvas();
+      saveCurrentMetadataToState();
+      updateJSONPreview();
+    }
+
+    function reindexCharacterOrders() {
+      state.annotations.forEach((ann, i) => {
+        ann.order = i;
+        ann.id = `char-${String(i + 1).padStart(4, '0')}`;
+      });
+    }
+
+    function setupDragAndDropReorder() {
+      const handles = document.querySelectorAll('#char-list-container .drag-handle');
+      let dragSrcIndex = null;
+
+      handles.forEach(handle => {
+        const row = handle.closest('.char-row');
+
+        handle.addEventListener('dragstart', function(e) {
+          pushHistoryState();
+          dragSrcIndex = parseInt(row.getAttribute('data-index'), 10);
+          row.classList.add('dragging');
+          e.dataTransfer.effectAllowed = 'move';
+        });
+
+        row.addEventListener('dragover', function(e) {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+        });
+
+        row.addEventListener('drop', function(e) {
+          e.preventDefault();
+          const targetIndex = parseInt(row.getAttribute('data-index'), 10);
+          if (dragSrcIndex !== null && dragSrcIndex !== targetIndex) {
+            const movedItem = state.annotations.splice(dragSrcIndex, 1)[0];
+            state.annotations.splice(targetIndex, 0, movedItem);
+            reindexCharacterOrders();
+            state.selectedIndex = targetIndex;
+            renderCharacterList();
+            redrawCanvas();
+            saveCurrentMetadataToState();
+            updateJSONPreview();
+          }
+        });
+
+        handle.addEventListener('dragend', function() {
+          row.classList.remove('dragging');
+        });
+      });
+    }
+
+    // ==========================================
+    // AI MODEL PLACEHOLDER INTEGRATION
+    // ==========================================
+    async function runAIPlaceholderDetection() {
+      if (state.currentIndex === -1) {
+        alert("Please load a seal image first.");
+        return;
+      }
+
+      pushHistoryState();
+
+      const btn = document.getElementById('btn-run-ai');
+      const originalText = btn.innerHTML;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Detecting...`;
+      btn.disabled = true;
+
+      const img = state.images[state.currentIndex];
+
+      try {
+        const detectedAnnotations = await mockAIDetectionModel(img);
+
+        state.annotations = detectedAnnotations.map(box => ({
+          ...box,
+          bbox: clampBBox(box.bbox, img.width, img.height)
+        }));
+
+        reindexCharacterOrders();
+        state.selectedIndex = 0;
+
+        renderCharacterList();
+        redrawCanvas();
+        saveCurrentMetadataToState();
+        updateJSONPreview();
+        alert(`AI Detection Complete: ${detectedAnnotations.length} character boxes auto-generated for human review.`);
+      } catch (err) {
+        alert("AI Detection error: " + err.message);
+      } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+      }
+    }
+
+    function mockAIDetectionModel(img) {
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          const w = img.width;
+          const h = img.height;
+          
+          const boxes = [
+            { id: "char-0001", type: "character", category_id: 0, order: 0, bbox: [Math.round(w*0.52), Math.round(h*0.1), Math.round(w*0.9), Math.round(h*0.48)], inscription: "", transcription: "", legibility: "legible" },
+            { id: "char-0002", type: "character", category_id: 0, order: 1, bbox: [Math.round(w*0.1), Math.round(h*0.1), Math.round(w*0.48), Math.round(h*0.48)], inscription: "", transcription: "", legibility: "legible" },
+            { id: "char-0003", type: "character", category_id: 0, order: 2, bbox: [Math.round(w*0.52), Math.round(h*0.52), Math.round(w*0.9), Math.round(h*0.9)], inscription: "", transcription: "", legibility: "legible" },
+            { id: "char-0004", type: "character", category_id: 0, order: 3, bbox: [Math.round(w*0.1), Math.round(h*0.52), Math.round(w*0.48), Math.round(h*0.9)], inscription: "", transcription: "", legibility: "legible" }
+          ];
+          resolve(boxes);
+        }, 800);
+      });
+    }
+
+    // ==========================================
+    // JSON BUILDER & PREVIEW
+    // ==========================================
+    function buildJsonObjectForCurrent() {
+      if (state.currentIndex === -1 || !state.images[state.currentIndex]) {
+        return { schema_version: "2.0.0", task: "character_detection", annotations: [] };
+      }
+      const img = state.images[state.currentIndex];
+      const annotator = document.getElementById('annotator-name').value || "Tester";
+
+      return {
+        schema_version: "2.0.0",
+        task: "character_detection",
+        annotation_status: img.annotation_status || "draft",
+        design: img.design || null,
+        remarks: img.remarks || null,
+        image: {
+          file_name: img.file_name,
+          root_folder: img.root_folder,
+          relative_path: img.relative_path,
+          path_kind: "relative_to_selected_root",
+          format: img.format,
+          mime_type: img.mime_type,
+          width: img.width,
+          height: img.height,
+          byte_size: img.byte_size,
+          last_modified: img.last_modified,
+          sha256: img.sha256,
+          exif_orientation: img.exif_orientation
+        },
+        coordinate_system: {
+          origin: "top-left",
+          x_direction: "right",
+          y_direction: "down",
+          unit: "pixel",
+          bbox_format: "xyxy",
+          edge_convention: "x_min_y_min_inclusive_x_max_y_max_exclusive",
+          reference: "browser-decoded display orientation"
+        },
+        categories: [
+          {
+            id: 0,
+            name: "character"
+          }
+        ],
+        annotations: state.annotations.map((ann, idx) => ({
+          id: `char-${String(idx + 1).padStart(4, '0')}`,
+          type: "character",
+          category_id: 0,
+          order: idx,
+          bbox: clampBBox(ann.bbox, img.width, img.height),
+          inscription: ann.inscription || null,
+          transcription: ann.transcription || null,
+          legibility: ann.legibility || "unreviewed"
+        })),
+        provenance: {
+          annotator: annotator,
+          created_at: img.created_at || new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          tool: DEFAULT_PROVENANCE_TOOL,
+          tool_version: DEFAULT_PROVENANCE_VERSION
+        }
+      };
+    }
+
+    function updateJSONPreview() {
+      const textarea = document.getElementById('json-output');
+      const filenameLabel = document.getElementById('json-filename');
+      if (state.currentIndex === -1) {
+        textarea.value = "{\n  // No active image loaded\n}";
+        filenameLabel.textContent = "The output updates after every modification.";
+        return;
+      }
+      const img = state.images[state.currentIndex];
+      filenameLabel.textContent = `Output file: ${img.file_name}_coord.json`;
+      textarea.value = JSON.stringify(buildJsonObjectForCurrent(), null, 2);
+    }
+
+    async function copyJSONPreview() {
+      const textarea = document.getElementById('json-output');
+      try {
+        await navigator.clipboard.writeText(textarea.value);
+        alert("JSON copied to clipboard successfully!");
+      } catch (err) {
+        textarea.select();
+        document.execCommand('copy');
+        alert("JSON copied to clipboard!");
+      }
+    }
+
+    async function saveCurrentJSON(moveNext = false) {
+      if (state.currentIndex === -1) {
+        alert("No active image to export.");
+        return;
+      }
+
+      saveCurrentMetadataToState();
+      const img = state.images[state.currentIndex];
+      const jsonOutput = buildJsonObjectForCurrent();
+      const jsonStr = JSON.stringify(jsonOutput, null, 2);
+      const filename = `${img.file_name}_coord.json`;
+
+      if ('showSaveFilePicker' in window) {
+        try {
+          const handle = await window.showSaveFilePicker({
+            suggestedName: filename,
+            types: [{ description: 'JSON Coordinate File', accept: { 'application/json': ['.json'] } }]
+          });
+          const writable = await handle.createWritable();
+          await writable.write(jsonStr);
+          await writable.close();
+          removeDraft(img);
+          state.dirty = false;
+        } catch (err) {
+          if (err.name !== 'AbortError') alert("Save File Error: " + err.message);
+          return;
+        }
+      } else {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(jsonStr);
+        const downloadAnchor = document.createElement('a');
+        downloadAnchor.setAttribute("href", dataStr);
+        downloadAnchor.setAttribute("download", filename);
+        document.body.appendChild(downloadAnchor);
+        downloadAnchor.click();
+        downloadAnchor.remove();
+        removeDraft(img);
+        state.dirty = false;
+      }
+
+      if (moveNext && state.currentIndex < state.images.length - 1) {
+        loadImageIndex(state.currentIndex + 1);
+      }
+    }
+
+    function importJSON(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        try {
+          const data = JSON.parse(evt.target.result);
+          if (!data.annotations || !data.image) {
+            throw new Error("Invalid schema format.");
+          }
+
+          let imgIdx = state.images.findIndex(i => i.file_name === data.image.file_name);
+
+          if (imgIdx !== -1) {
+            pushHistoryState();
+            const img = state.images[imgIdx];
+            state.images[imgIdx].design = data.design || "";
+            state.images[imgIdx].remarks = data.remarks || "";
+            state.images[imgIdx].annotation_status = data.annotation_status || "draft";
+            state.images[imgIdx].annotations = data.annotations.map(ann => ({
+              ...ann,
+              bbox: clampBBox(ann.bbox, img.width, img.height)
+            }));
+            loadImageIndex(imgIdx);
+          } else {
+            alert(`JSON imported successfully! Note: Corresponding image '${data.image.file_name}' needs to be loaded into the queue.`);
+          }
+        } catch (err) {
+          alert("Error parsing JSON file: " + err.message);
+        }
+      };
+      reader.readAsText(file);
+    }
+  </script>
+</body>
+</html>
