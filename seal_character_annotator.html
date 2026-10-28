@@ -102,8 +102,8 @@
   <!-- MAIN APP CONTAINER -->
   <div class="flex flex-col md:flex-row h-[85vh] min-h-[650px] relative">
 
-    <!-- LEFT SIDEBAR (30% on desktop) -->
-    <aside id="sidebar" class="w-full md:w-[30%] bg-white border-r border-gray-200 flex flex-col h-full z-20 transition-all duration-300 absolute md:relative inset-0 transform -translate-x-full md:translate-x-0 shadow-2xl md:shadow-none">
+    <!-- LEFT SIDEBAR (20% width on desktop) -->
+    <aside id="sidebar" class="w-full md:w-[20%] bg-white border-r border-gray-200 flex flex-col h-full z-20 transition-all duration-300 absolute md:relative inset-0 transform -translate-x-full md:translate-x-0 shadow-2xl md:shadow-none">
       
       <!-- Mobile Close Sidebar Header -->
       <div class="md:hidden p-3 bg-gray-50 border-b flex justify-between items-center">
@@ -186,12 +186,12 @@
             <i class="fa-solid fa-circle-info text-amber-600"></i> 4. Image Metadata
           </h2>
           <div id="metadata-container" class="text-[11px] space-y-1 text-gray-600">
-            <div class="flex justify-between border-b pb-0.5"><span class="text-gray-400">Filename:</span> <span id="meta-filename" class="font-mono truncate max-w-[180px] text-right">-</span></div>
-            <div class="flex justify-between border-b pb-0.5"><span class="text-gray-400">Relative Path:</span> <span id="meta-path" class="font-mono truncate max-w-[180px] text-right">-</span></div>
+            <div class="flex justify-between border-b pb-0.5"><span class="text-gray-400">Filename:</span> <span id="meta-filename" class="font-mono truncate max-w-[140px] text-right">-</span></div>
+            <div class="flex justify-between border-b pb-0.5"><span class="text-gray-400">Relative Path:</span> <span id="meta-path" class="font-mono truncate max-w-[140px] text-right">-</span></div>
             <div class="flex justify-between border-b pb-0.5"><span class="text-gray-400">Format/MIME:</span> <span id="meta-format" class="font-mono">-</span></div>
             <div class="flex justify-between border-b pb-0.5"><span class="text-gray-400">Dimensions:</span> <span id="meta-dim" class="font-mono">-</span></div>
             <div class="flex justify-between border-b pb-0.5"><span class="text-gray-400">Byte Size:</span> <span id="meta-bytes" class="font-mono">-</span></div>
-            <div class="flex justify-between border-b pb-0.5"><span class="text-gray-400">SHA-256:</span> <span id="meta-sha256" class="font-mono truncate max-w-[150px] text-right">-</span></div>
+            <div class="flex justify-between border-b pb-0.5"><span class="text-gray-400">SHA-256:</span> <span id="meta-sha256" class="font-mono truncate max-w-[120px] text-right">-</span></div>
             <div class="flex justify-between"><span class="text-gray-400">EXIF Orientation:</span> <span id="meta-exif" class="font-mono">-</span></div>
           </div>
         </div>
@@ -202,8 +202,8 @@
     <!-- RIGHT MAIN AREA -->
     <main class="flex-1 flex flex-col h-full overflow-hidden bg-gray-200">
 
-      <!-- TOP PART (65% height): IMAGE PREVIEW CANVAS FRAME -->
-      <section class="h-[65%] relative bg-slate-950 flex flex-col overflow-hidden select-none">
+      <!-- TOP PART (70% height): IMAGE PREVIEW CANVAS FRAME -->
+      <section class="h-[70%] relative bg-slate-950 flex flex-col overflow-hidden select-none">
         
         <!-- Canvas Floating Control Toolbar -->
         <div class="absolute top-2 left-2 z-10 flex items-center space-x-1 bg-slate-900/90 border border-slate-700/80 p-1 rounded-lg shadow-lg text-white text-xs">
@@ -247,8 +247,8 @@
         </div>
       </section>
 
-      <!-- BOTTOM PART (35% height): ANNOTATIONS LIST & SEAL METADATA -->
-      <section class="h-[35%] bg-white border-t border-gray-300 flex flex-col md:flex-row overflow-hidden">
+      <!-- BOTTOM PART (30% height): ANNOTATIONS LIST & SEAL METADATA -->
+      <section class="h-[30%] bg-white border-t border-gray-300 flex flex-col md:flex-row overflow-hidden">
         
         <!-- Left Side (60%): Character Annotations List -->
         <div class="w-full md:w-[60%] border-r border-gray-200 flex flex-col h-full">
@@ -264,13 +264,30 @@
             </button>
           </div>
 
-          <!-- Characters Table/List Header -->
-          <div class="grid grid-cols-12 gap-1 px-2 py-1 bg-gray-100 border-b text-[11px] font-semibold text-gray-500 shrink-0">
+          <!-- Characters Table/List Header (12 Columns Total) -->
+          <div class="grid grid-cols-12 gap-1 px-2 py-1 bg-gray-100 border-b text-[11px] font-semibold text-gray-500 shrink-0 relative z-20">
             <div class="col-span-1 text-center">Ord</div>
             <div class="col-span-2 text-center">Inscription</div>
             <div class="col-span-2 text-center">Transcription</div>
-            <div class="col-span-3 text-center">Legibility</div>
-            <div class="col-span-3 text-center">BBox [xyxy]</div>
+            
+            <!-- Carving Header with Info Tooltip (Circle Question Mark) -->
+            <div class="col-span-2 text-center relative group flex items-center justify-center gap-1 cursor-help">
+              <span>Carving</span>
+              <i class="fa-solid fa-circle-question text-gray-400 hover:text-amber-600 text-xs"></i>
+              
+              <!-- White Hover Popover Card -->
+              <div class="absolute top-full mt-2 left-1/2 -translate-x-1/2 w-56 p-2.5 bg-white text-gray-800 text-[11px] rounded-lg shadow-2xl border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 text-left font-normal normal-case">
+                <p class="font-bold text-amber-600 mb-1">朱文 vs 白文 Difference</p>
+                <img src="craving_example.jpeg" alt="Carving Example" class="w-full h-24 object-cover rounded mb-1 bg-gray-100 border border-gray-200" onerror="this.style.display='none'">
+                <p class="text-[10px] text-gray-600 leading-tight">
+                  <strong class="text-gray-900">朱文 (Relief):</strong> Red characters on white background.<br>
+                  <strong class="text-gray-900">白文 (Intaglio):</strong> White characters on red background.
+                </p>
+              </div>
+            </div>
+
+            <div class="col-span-2 text-center">Legibility</div>
+            <div class="col-span-2 text-center">BBox [xyxy]</div>
             <div class="col-span-1 text-center">Del</div>
           </div>
 
@@ -309,8 +326,6 @@
                   <label for="annotation-status" class="text-[11px] font-medium text-gray-600">Status:</label>
                   <select id="annotation-status" class="text-xs p-1 border border-gray-300 rounded bg-white focus:ring-1 focus:ring-amber-500">
                     <option value="draft">draft</option>
-                    <option value="in_review">in_review</option>
-                    <option value="completed">completed</option>
                     <option value="complete">complete</option>
                   </select>
                 </div>
@@ -377,6 +392,127 @@
 
     function getCharColor(index) {
       return CHARACTER_COLORS[index % CHARACTER_COLORS.length];
+    }
+
+    // ==========================================
+    // PYTHON SEAL CLASSIFIER PORTED TO JAVASCRIPT
+    // ==========================================
+    function detectCarvingMethod(imgElement, bbox) {
+      const [xmin, ymin, xmax, ymax] = bbox;
+      const w = xmax - xmin;
+      const h = ymax - ymin;
+      if (w <= 0 || h <= 0) return "relief";
+
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(imgElement, xmin, ymin, w, h, 0, 0, w, h);
+      
+      const imgData = ctx.getImageData(0, 0, w, h);
+      const data = imgData.data;
+      const redMask = new Uint8Array(w * h);
+
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i] / 255;
+        const g = data[i + 1] / 255;
+        const b = data[i + 2] / 255;
+
+        const max = Math.max(r, g, b);
+        const min = Math.min(r, g, b);
+        const diff = max - min;
+        let h_val = 0;
+        const s_val = max === 0 ? 0 : diff / max;
+        const v_val = max;
+
+        if (diff !== 0) {
+          if (max === r) h_val = ((g - b) / diff) % 6;
+          else if (max === g) h_val = (b - r) / diff + 2;
+          else h_val = (r - g) / diff + 4;
+          h_val = Math.round(h_val * 60);
+          if (h_val < 0) h_val += 360;
+        }
+
+        const hDeg = h_val;
+        const s255 = s_val * 255;
+        const v255 = v_val * 255;
+
+        const isRed1 = (hDeg >= 0 && hDeg <= 10 && s255 >= 50 && v255 >= 50);
+        const isRed2 = (hDeg >= 170 && hDeg <= 180 && s255 >= 50 && v255 >= 50);
+
+        if (isRed1 || isRed2) {
+          redMask[i / 4] = 1;
+        }
+      }
+
+      // 1. Corner Sampling
+      const CORNER_SCALE_DIVISOR = 10;
+      const MIN_PATCH_SIZE = 3;
+      let k = Math.max(MIN_PATCH_SIZE, Math.min(h, w) / CORNER_SCALE_DIVISOR);
+      k = Math.floor(Math.min(k, h / 2, w / 2));
+      if (k < 1) k = 1;
+
+      let cornerTotal = 0;
+      let cornerRed = 0;
+
+      function sampleCorner(x0, y0, kw, kh) {
+        for (let y = y0; y < y0 + kh; y++) {
+          for (let x = x0; x < x0 + kw; x++) {
+            cornerTotal++;
+            if (redMask[y * w + x] === 1) cornerRed++;
+          }
+        }
+      }
+
+      sampleCorner(0, 0, k, k);
+      sampleCorner(w - k, 0, k, k);
+      sampleCorner(0, h - k, k, k);
+      sampleCorner(w - k, h - k, k, k);
+
+      const cornerScore = cornerTotal > 0 ? (cornerRed / cornerTotal) : 0;
+
+      // 2. Row & Column Uniformity Scan with Tolerance = 1
+      const TOLERANCE_PIXELS = 1;
+      const rowRedCounts = new Int32Array(h);
+      const colRedCounts = new Int32Array(w);
+
+      for (let y = 0; y < h; y++) {
+        let count = 0;
+        for (let x = 0; x < w; x++) {
+          if (redMask[y * w + x] === 1) count++;
+        }
+        rowRedCounts[y] = count;
+      }
+
+      for (let x = 0; x < w; x++) {
+        let count = 0;
+        for (let y = 0; y < h; y++) {
+          if (redMask[y * w + x] === 1) count++;
+        }
+        colRedCounts[x] = count;
+      }
+
+      let whiteRows = 0, redRows = 0;
+      for (let y = 0; y < h; y++) {
+        if (rowRedCounts[y] <= TOLERANCE_PIXELS) whiteRows++;
+        if (rowRedCounts[y] >= (w - TOLERANCE_PIXELS)) redRows++;
+      }
+
+      let whiteCols = 0, redCols = 0;
+      for (let x = 0; x < w; x++) {
+        if (colRedCounts[x] <= TOLERANCE_PIXELS) whiteCols++;
+        if (colRedCounts[x] >= (h - TOLERANCE_PIXELS)) redCols++;
+      }
+
+      const totalUniform = (redRows + redCols) + (whiteRows + whiteCols);
+      let rowColScore = 0.5;
+      if (totalUniform > 0) {
+        rowColScore = (redRows + redCols) / totalUniform;
+      }
+
+      // 3. Combined Score Calculation (Threshold = 0.5)
+      const finalScore = (0.5 * cornerScore) + (0.5 * rowColScore);
+      return finalScore >= 0.5 ? "intaglio" : "relief"; // intaglio = 白文, relief = 朱文
     }
 
     // ==========================================
@@ -670,7 +806,7 @@
       markCompleteChk.addEventListener('change', () => {
         if (markCompleteChk.checked) {
           statusSelect.value = 'complete';
-        } else if (statusSelect.value === 'complete') {
+        } else {
           statusSelect.value = 'draft';
         }
         saveCurrentMetadataToState();
@@ -678,7 +814,7 @@
       });
 
       statusSelect.addEventListener('change', () => {
-        markCompleteChk.checked = (statusSelect.value === 'complete' || statusSelect.value === 'completed');
+        markCompleteChk.checked = (statusSelect.value === 'complete');
         saveCurrentMetadataToState();
         updateJSONPreview();
       });
@@ -775,7 +911,7 @@
       queueList.innerHTML = filtered.map((img) => {
         const originalIndex = state.images.indexOf(img);
         const isActive = originalIndex === state.currentIndex;
-        const isComplete = img.annotation_status === "complete" || img.annotation_status === "completed";
+        const isComplete = img.annotation_status === "complete";
         return `
           <div onclick="loadImageIndex(${originalIndex})" class="p-1.5 rounded text-xs flex items-center justify-between cursor-pointer border transition ${isActive ? 'bg-amber-50 border-amber-400 font-semibold text-amber-700' : 'bg-white hover:bg-gray-50 border-gray-200 text-gray-700'}">
             <div class="flex items-center space-x-2 truncate">
@@ -826,7 +962,7 @@
       document.getElementById('meta-format').textContent = `${current.format} (${current.mime_type})`;
       document.getElementById('meta-dim').textContent = `${current.width} x ${current.height} px`;
       document.getElementById('meta-bytes').textContent = `${(current.byte_size / 1024).toFixed(1)} KB`;
-      document.getElementById('meta-sha256').textContent = current.sha256 ? `${current.sha256.slice(0, 12)}…` : '-';
+      document.getElementById('meta-sha256').textContent = current.sha256 ? `${current.sha256.slice(0, 10)}…` : '-';
       document.getElementById('meta-sha256').title = current.sha256 || '';
       document.getElementById('meta-exif').textContent = current.exif_orientation !== null ? current.exif_orientation : 'Not present';
 
@@ -836,8 +972,8 @@
       document.getElementById('seal-remarks').value = current.remarks || "";
       document.getElementById('remarks-count').textContent = `${(current.remarks || "").length} / 250`;
 
-      document.getElementById('annotation-status').value = current.annotation_status || "draft";
-      document.getElementById('chk-mark-complete').checked = (current.annotation_status === 'complete' || current.annotation_status === 'completed');
+      document.getElementById('annotation-status').value = current.annotation_status === 'complete' ? 'complete' : 'draft';
+      document.getElementById('chk-mark-complete').checked = (current.annotation_status === 'complete');
 
       renderQueueList();
       renderCharacterList();
@@ -875,6 +1011,18 @@
     // ==========================================
     // CANVAS DRAWING & COORDINATE CONVERSIONS
     // ==========================================
+    function updateZoomUI() {
+      if (state.currentIndex === -1) {
+        document.getElementById('zoom-level-text').textContent = "100%";
+        return;
+      }
+      const img = state.images[state.currentIndex].imgElement;
+      // 100% when image height covers the whole height of the canvas
+      const fitHeightZoom = canvas.height / img.naturalHeight;
+      const pct = Math.round((state.zoom / fitHeightZoom) * 100);
+      document.getElementById('zoom-level-text').textContent = `${pct}%`;
+    }
+
     function resetView() {
       if (state.currentIndex === -1) return;
       const img = state.images[state.currentIndex].imgElement;
@@ -890,7 +1038,7 @@
       state.panX = (canvas.width - img.naturalWidth * state.zoom) / 2;
       state.panY = (canvas.height - img.naturalHeight * state.zoom) / 2;
 
-      document.getElementById('zoom-level-text').textContent = `${Math.round(state.zoom * 100)}%`;
+      updateZoomUI();
       redrawCanvas();
     }
 
@@ -904,7 +1052,7 @@
       state.panY = centerY - (centerY - state.panY) * (newZoom / state.zoom);
       state.zoom = newZoom;
 
-      document.getElementById('zoom-level-text').textContent = `${Math.round(state.zoom * 100)}%`;
+      updateZoomUI();
       redrawCanvas();
     }
 
@@ -961,7 +1109,8 @@
         ctx.fillRect(pMin.x, pMin.y, boxW, boxH);
         ctx.strokeRect(pMin.x, pMin.y, boxW, boxH);
 
-        const labelText = `#${ann.order + 1} ${ann.inscription || '?'}`;
+        const methodBadge = ann.carving_method === 'intaglio' ? '[白]' : '[朱]';
+        const labelText = `#${ann.order + 1} ${ann.inscription || '?'} ${methodBadge}`;
         ctx.font = 'bold 12px sans-serif';
         const textWidth = ctx.measureText(labelText).width;
         
@@ -1108,7 +1257,8 @@
             state.hasMovedOrResized = true;
           }
 
-          const bbox = state.annotations[state.selectedIndex].bbox;
+          const ann = state.annotations[state.selectedIndex];
+          const bbox = ann.bbox;
           const w = bbox[2] - bbox[0];
           const h = bbox[3] - bbox[1];
           
@@ -1127,6 +1277,12 @@
           bbox[2] = newXmax;
           bbox[3] = newYmax;
 
+          // Re-detect carving method on modify if not locked by manual override
+          if (!ann.manual_carving) {
+            ann.carving_method = detectCarvingMethod(img.imgElement, bbox);
+            updateCarvingDropdownUI(state.selectedIndex);
+          }
+
           state.startMouseX = state.currentMouseX;
           state.startMouseY = state.currentMouseY;
           updateCharacterInputsUI(state.selectedIndex);
@@ -1140,7 +1296,8 @@
       if (state.isResizing && state.selectedIndex !== -1) {
         const img = state.images[state.currentIndex];
         const imgPos = screenToImageCoords(state.currentMouseX, state.currentMouseY);
-        const bbox = state.annotations[state.selectedIndex].bbox;
+        const ann = state.annotations[state.selectedIndex];
+        const bbox = ann.bbox;
 
         if (state.activeHandle === 'left') { bbox[0] = Math.min(imgPos.x, bbox[2] - 1); }
         else if (state.activeHandle === 'right') { bbox[2] = Math.max(imgPos.x, bbox[0] + 1); }
@@ -1151,7 +1308,13 @@
         else if (state.activeHandle === 'bl') { bbox[0] = Math.min(imgPos.x, bbox[2] - 1); bbox[3] = Math.max(imgPos.y, bbox[1] + 1); }
         else if (state.activeHandle === 'br') { bbox[2] = Math.max(imgPos.x, bbox[0] + 1); bbox[3] = Math.max(imgPos.y, bbox[1] + 1); }
 
-        state.annotations[state.selectedIndex].bbox = clampBBox(bbox, img.width, img.height);
+        ann.bbox = clampBBox(bbox, img.width, img.height);
+
+        // Re-detect carving method on resize if not locked by manual override
+        if (!ann.manual_carving) {
+          ann.carving_method = detectCarvingMethod(img.imgElement, ann.bbox);
+          updateCarvingDropdownUI(state.selectedIndex);
+        }
 
         updateCharacterInputsUI(state.selectedIndex);
         redrawCanvas();
@@ -1191,14 +1354,19 @@
           pushHistoryState();
 
           const newOrder = state.annotations.length;
+          const bbox = [xmin, ymin, xmax, ymax];
+          const detectedMethod = detectCarvingMethod(img.imgElement, bbox);
+
           const newChar = {
             id: `char-${String(newOrder + 1).padStart(4, '0')}`,
             type: "character",
             category_id: 0,
             order: newOrder,
-            bbox: [xmin, ymin, xmax, ymax],
+            bbox: bbox,
             inscription: "",
             transcription: "",
+            carving_method: detectedMethod,
+            manual_carving: false,
             legibility: "unreviewed"
           };
           state.annotations.push(newChar);
@@ -1246,7 +1414,7 @@
         );
         const factor = dist / state.touchStartDist;
         state.zoom = Math.min(Math.max(state.touchStartZoom * factor, 0.2), 8.0);
-        document.getElementById('zoom-level-text').textContent = `${Math.round(state.zoom * 100)}%`;
+        updateZoomUI();
         redrawCanvas();
       } else if (e.touches.length === 1) {
         const touch = e.touches[0];
@@ -1313,7 +1481,8 @@
       if (state.selectedIndex !== -1) {
         const img = state.images[state.currentIndex];
         const step = e.shiftKey ? 10 : 1;
-        const bbox = state.annotations[state.selectedIndex].bbox;
+        const ann = state.annotations[state.selectedIndex];
+        const bbox = ann.bbox;
 
         if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
           pushHistoryState();
@@ -1329,7 +1498,13 @@
         } else return;
 
         e.preventDefault();
-        state.annotations[state.selectedIndex].bbox = clampBBox(bbox, img.width, img.height);
+        ann.bbox = clampBBox(bbox, img.width, img.height);
+        
+        if (!ann.manual_carving) {
+          ann.carving_method = detectCarvingMethod(img.imgElement, ann.bbox);
+          updateCarvingDropdownUI(state.selectedIndex);
+        }
+
         updateCharacterInputsUI(state.selectedIndex);
         redrawCanvas();
         saveCurrentMetadataToState();
@@ -1353,6 +1528,7 @@
       const ymin = Math.round((img.height - h) / 2);
 
       const clampedBBox = clampBBox([xmin, ymin, xmin + w, ymin + h], img.width, img.height);
+      const detectedMethod = detectCarvingMethod(img.imgElement, clampedBBox);
 
       state.annotations.push({
         id: `char-${String(newOrder + 1).padStart(4, '0')}`,
@@ -1362,6 +1538,8 @@
         bbox: clampedBBox,
         inscription: "",
         transcription: "",
+        carving_method: detectedMethod,
+        manual_carving: false,
         legibility: "unreviewed"
       });
 
@@ -1404,8 +1582,16 @@
               <input type="text" value="${char.transcription || ''}" onfocus="pushHistoryState()" oninput="updateCharProp(${idx}, 'transcription', this.value)" placeholder="釋文" class="w-full text-xs p-1 border border-gray-300 rounded focus:ring-1 focus:ring-amber-500 text-center">
             </div>
 
-            <!-- Legibility Dropdown (Partially option removed) -->
-            <div class="col-span-3">
+            <!-- Carving Method Dropdown -->
+            <div class="col-span-2">
+              <select id="carving-select-${idx}" onfocus="pushHistoryState()" onchange="updateCharProp(${idx}, 'carving_method', this.value)" class="w-full text-[11px] p-1 border border-gray-300 rounded bg-white focus:ring-1 focus:ring-amber-500">
+                <option value="intaglio" ${char.carving_method === 'intaglio' ? 'selected' : ''}>intaglio [白]</option>
+                <option value="relief" ${char.carving_method === 'relief' ? 'selected' : ''}>relief [朱]</option>
+              </select>
+            </div>
+
+            <!-- Legibility Dropdown -->
+            <div class="col-span-2">
               <select onfocus="pushHistoryState()" onchange="updateCharProp(${idx}, 'legibility', this.value)" class="w-full text-[11px] p-1 border border-gray-300 rounded bg-white focus:ring-1 focus:ring-amber-500">
                 <option value="unreviewed" ${char.legibility === 'unreviewed' ? 'selected' : ''}>unreviewed</option>
                 <option value="legible" ${char.legibility === 'legible' ? 'selected' : ''}>legible</option>
@@ -1416,7 +1602,7 @@
             </div>
 
             <!-- Bounding Box Coords Input -->
-            <div class="col-span-3">
+            <div class="col-span-2">
               <input type="text" id="bbox-input-${idx}" value="${bboxStr}" onfocus="pushHistoryState()" onchange="updateCharBBox(${idx}, this.value)" class="w-full text-[10px] font-mono p-1 border border-gray-300 rounded text-center">
             </div>
 
@@ -1453,14 +1639,19 @@
     function updateCharProp(idx, key, val) {
       if (state.annotations[idx]) {
         state.annotations[idx][key] = val;
-        if (key === 'inscription' && !state.annotations[idx].transcription) {
-          state.annotations[idx].transcription = val;
-          const transInput = document.querySelector(`.char-row[data-index="${idx}"] input[placeholder="釋文"]`);
-          if (transInput) transInput.value = val;
+        if (key === 'carving_method') {
+          state.annotations[idx].manual_carving = true; // Lock manual override so bbox resizes won't overwrite it
         }
         redrawCanvas();
         saveCurrentMetadataToState();
         updateJSONPreview();
+      }
+    }
+
+    function updateCarvingDropdownUI(idx) {
+      const select = document.getElementById(`carving-select-${idx}`);
+      if (select && state.annotations[idx]) {
+        select.value = state.annotations[idx].carving_method;
       }
     }
 
@@ -1469,7 +1660,15 @@
       const img = state.images[state.currentIndex];
       const coords = str.split(',').map(n => parseInt(n.trim(), 10));
       if (coords.length === 4 && coords.every(n => !isNaN(n))) {
-        state.annotations[idx].bbox = clampBBox(coords, img.width, img.height);
+        const clamped = clampBBox(coords, img.width, img.height);
+        const ann = state.annotations[idx];
+        ann.bbox = clamped;
+        
+        if (!ann.manual_carving) {
+          ann.carving_method = detectCarvingMethod(img.imgElement, clamped);
+          updateCarvingDropdownUI(idx);
+        }
+
         updateCharacterInputsUI(idx);
         redrawCanvas();
         saveCurrentMetadataToState();
@@ -1563,10 +1762,16 @@
       try {
         const detectedAnnotations = await mockAIDetectionModel(img);
 
-        state.annotations = detectedAnnotations.map(box => ({
-          ...box,
-          bbox: clampBBox(box.bbox, img.width, img.height)
-        }));
+        state.annotations = detectedAnnotations.map(box => {
+          const clamped = clampBBox(box.bbox, img.width, img.height);
+          const detectedMethod = detectCarvingMethod(img.imgElement, clamped);
+          return {
+            ...box,
+            bbox: clamped,
+            carving_method: detectedMethod,
+            manual_carving: false
+          };
+        });
 
         reindexCharacterOrders();
         state.selectedIndex = 0;
@@ -1654,6 +1859,7 @@
           bbox: clampBBox(ann.bbox, img.width, img.height),
           inscription: ann.inscription || null,
           transcription: ann.transcription || null,
+          carving_method: ann.carving_method || "relief",
           legibility: ann.legibility || "unreviewed"
         })),
         provenance: {
@@ -1757,7 +1963,9 @@
             state.images[imgIdx].annotation_status = data.annotation_status || "draft";
             state.images[imgIdx].annotations = data.annotations.map(ann => ({
               ...ann,
-              bbox: clampBBox(ann.bbox, img.width, img.height)
+              bbox: clampBBox(ann.bbox, img.width, img.height),
+              carving_method: ann.carving_method || detectCarvingMethod(img.imgElement, clampBBox(ann.bbox, img.width, img.height)),
+              manual_carving: !!ann.carving_method
             }));
             loadImageIndex(imgIdx);
           } else {
