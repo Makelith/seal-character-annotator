@@ -176,7 +176,7 @@
           </h2>
           <div class="flex items-center space-x-2">
             <label for="annotator-name" class="text-xs font-medium text-gray-600">Name:</label>
-            <input type="text" id="annotator-name" value="Tester_Oct2026" class="flex-1 text-xs px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-amber-500">
+            <input type="text" id="annotator-name" value="" placeholder="Name or staff ID (optional)" class="flex-1 text-xs px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-amber-500">
           </div>
         </div>
 
@@ -543,13 +543,17 @@
       showCrosshairs: true,
       touchStartDist: 0,
       touchStartZoom: 1.0,
-      dirty: false
+      dirty: false,
+      rootHandle: null,
+      rootWritable: false,
+      rootLabel: null
     };
 
     // Canvas elements
     const wrapper = document.getElementById('canvas-wrapper');
     const canvas = document.getElementById('annotation-canvas');
     const ctx = canvas.getContext('2d');
+    const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
 
     const DEFAULT_PROVENANCE_TOOL = "Seal Bounding Box Annotator";
     const DEFAULT_PROVENANCE_VERSION = "2.1.0";
@@ -603,7 +607,7 @@
 
     function draftKey(imgObj) {
       if (!imgObj) return null;
-      return `${DRAFT_PREFIX}${imgObj.root_folder}|${imgObj.relative_path}|${imgObj.byte_size}`;
+      return `${DRAFT_PREFIX}${state.rootLabel || "single"}|${imgObj.relative_path}|${imgObj.byte_size}`;
     }
 
     function saveDraft(imgObj) {
@@ -639,6 +643,9 @@
 
     function markDirty() {
       state.dirty = true;
+      if (state.currentIndex >= 0 && state.images[state.currentIndex]) {
+        state.images[state.currentIndex].status = "dirty";
+      }
     }
 
     // ==========================================
@@ -728,9 +735,23 @@
 
     function resizeCanvas() {
       if (!wrapper) return;
+
+      // 1. Update canvas dimensions to match the new wrapper/browser size
       canvas.width = wrapper.clientWidth;
       canvas.height = wrapper.clientHeight;
+
+      // 2. If an image is loaded, re-center it using the existing zoom level
+      if (state.currentIndex !== -1 && state.images[state.currentIndex]) {
+        const img = state.images[state.currentIndex].imgElement;
+        
+        // Recalculate panX and panY to perfectly center the image
+        state.panX = (canvas.width - img.naturalWidth * state.zoom) / 2;
+        state.panY = (canvas.height - img.naturalHeight * state.zoom) / 2;
+      }
+
+      // 3. Redraw the canvas with the new layout
       redrawCanvas();
+      updateZoomUI();
     }
 
     function setupEventListeners() {
@@ -741,7 +762,7 @@
         document.getElementById('sidebar').classList.add('-translate-x-full');
       });
 
-      document.getElementById('btn-open-folder').addEventListener('click', () => document.getElementById('input-folder').click());
+      document.getElementById('btn-open-folder').addEventListener('click', openFolder);
       document.getElementById('btn-open-files').addEventListener('click', () => document.getElementById('input-files').click());
       
       document.getElementById('input-folder').addEventListener('change', (e) => handleFilesSelected(e.target.files));
@@ -751,7 +772,7 @@
       dropZone.addEventListener('click', () => document.getElementById('input-files').click());
       dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('border-amber-500', 'bg-amber-50'); });
       dropZone.addEventListener('dragleave', () => { dropZone.classList.remove('border-amber-500', 'bg-amber-50'); });
-      dropZone.addEventListener('drop', (e) => {
+      dropZone.addEventListener('drop', async (e) => {
         e.preventDefault();
         dropZone.classList.remove('border-amber-500', 'bg-amber-50');
         if (e.dataTransfer.files.length) handleFilesSelected(e.dataTransfer.files);
@@ -840,30 +861,86 @@
     }
 
     // ==========================================
-    // FILE MANAGEMENT & QUEUE HANDLING
+    // FILE MANAGEMENT & FOLDER ACCESS (SUN'S APPROACH)
     // ==========================================
-    async function handleFilesSelected(files) {
-      const fileList = Array.from(files).filter(f => f.type.startsWith('image/'));
-      if (!fileList.length) return;
+    async function verifyPermission(handle, readWrite = false) {
+      if (!handle || typeof handle.queryPermission !== "function") return false;
+      const options = readWrite ? { mode: "readwrite" } : {};
+      try {
+        if (await handle.queryPermission(options) === "granted") return true;
+        return await handle.requestPermission(options) === "granted";
+      } catch (_) {
+        return false;
+      }
+    }
 
-      for (const file of fileList) {
+    async function walkDirectory(directoryHandle, prefix, output, stats) {
+      for await (const [name, handle] of directoryHandle.entries()) {
+        if (handle.kind === "directory") {
+          await walkDirectory(handle, prefix ? `${prefix}/${name}` : name, output, stats);
+          continue;
+        }
+        if (/\.(jpe?g|png)$/i.test(name)) {
+          output.push({
+            fileHandle: handle,
+            parentHandle: directoryHandle,
+            relativePath: prefix ? `${prefix}/${name}` : name
+          });
+        } else if (/\.(tif|tiff)$/i.test(name)) {
+          stats.tiff += 1;
+        }
+      }
+    }
+
+    async function openFolder() {
+      if ("showDirectoryPicker" in window && window.isSecureContext) {
+        try {
+          const handle = await window.showDirectoryPicker({ id: "seal-images", mode: "readwrite" });
+          const writable = await verifyPermission(handle, true);
+          const items = [];
+          const stats = { tiff: 0 };
+          await walkDirectory(handle, "", items, stats);
+          items.sort((a, b) => collator.compare(a.relativePath, b.relativePath));
+          if (!items.length) {
+            alert("No supported JPEG or PNG images found in this folder.");
+            return;
+          }
+          state.rootHandle = handle;
+          state.rootWritable = writable;
+          state.rootLabel = handle.name;
+          await loadQueueFromDirectoryItems(items, handle.name);
+          if (!writable) alert("Folder opened read-only. Chrome will ask where to save each JSON file.");
+        } catch (error) {
+          if (error?.name !== "AbortError") {
+            alert("Could not open the folder: " + error.message);
+          }
+        }
+      } else {
+        document.getElementById('input-folder').click();
+      }
+    }
+
+    async function loadQueueFromDirectoryItems(items, rootFolder) {
+      state.images = [];
+      state.currentIndex = -1;
+
+      for (const item of items) {
+        const file = await item.fileHandle.getFile();
         const url = URL.createObjectURL(file);
         const img = new Image();
-        
+
         await new Promise((resolve) => {
           img.onload = async () => {
-            const relativePath = file.webkitRelativePath || file.name;
-            const folderParts = relativePath.split('/');
-            const rootFolder = folderParts.length > 1 ? folderParts[0] : 'Seal_DATA';
-
             const sha256 = await calculateSHA256(file);
             const exif = await readJpegExifOrientation(file);
 
             const imgObj = {
               fileRef: file,
+              fileHandle: item.fileHandle,
+              parentHandle: item.parentHandle,
               file_name: file.name,
               root_folder: rootFolder,
-              relative_path: relativePath,
+              relative_path: item.relativePath,
               format: file.type.split('/')[1]?.toUpperCase() || 'JPEG',
               mime_type: file.type || 'image/jpeg',
               width: img.naturalWidth,
@@ -877,6 +954,71 @@
               design: "",
               remarks: "",
               annotation_status: "draft",
+              status: "pending",
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            };
+
+            await loadExistingSidecar(imgObj);
+            state.images.push(imgObj);
+            resolve();
+          };
+          img.src = url;
+        });
+      }
+
+      renderQueueList();
+      if (state.images.length > 0) {
+        loadImageIndex(0);
+      }
+    }
+
+    async function handleFilesSelected(files) {
+      const fileList = Array.from(files).filter(f => f.type.startsWith('image/') || /\.(jpe?g|png)$/i.test(f.name));
+      if (!fileList.length) return;
+
+      let rootFolder = null;
+
+      for (const file of fileList) {
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        
+        await new Promise((resolve) => {
+          img.onload = async () => {
+            const relativePath = file.webkitRelativePath || file.name;
+            let cleanPath = relativePath;
+            if (relativePath.includes('/')) {
+              const parts = relativePath.split('/');
+              if (!rootFolder) rootFolder = parts[0];
+              cleanPath = parts.slice(1).join('/');
+            } else {
+              if (!rootFolder) rootFolder = 'Seal_DATA';
+            }
+
+            const sha256 = await calculateSHA256(file);
+            const exif = await readJpegExifOrientation(file);
+
+            const imgObj = {
+              fileRef: file,
+              fileHandle: null,
+              parentHandle: null,
+              file_name: file.name,
+              root_folder: rootFolder,
+              relative_path: cleanPath,
+              format: file.type.split('/')[1]?.toUpperCase() || 'JPEG',
+              mime_type: file.type || 'image/jpeg',
+              width: img.naturalWidth,
+              height: img.naturalHeight,
+              byte_size: file.size,
+              last_modified: new Date(file.lastModified).toISOString(),
+              sha256: sha256,
+              exif_orientation: exif,
+              imgElement: img,
+              annotations: [],
+              design: "",
+              remarks: "",
+              annotation_status: "draft",
+              status: "pending",
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString()
             };
@@ -888,16 +1030,41 @@
         });
       }
 
+      state.rootLabel = rootFolder;
       renderQueueList();
       if (state.currentIndex === -1 && state.images.length > 0) {
         loadImageIndex(0);
       }
     }
 
+    async function loadExistingSidecar(imgObj) {
+      const parent = imgObj?.parentHandle;
+      if (!parent) return false;
+      try {
+        const handle = await parent.getFileHandle(`${imgObj.file_name}_coord.json`);
+        const text = await (await handle.getFile()).text();
+        const data = JSON.parse(text);
+        if (data.annotations && data.annotations.length) {
+          imgObj.annotations = data.annotations.map(ann => ({
+            ...ann,
+            bbox: clampBBox(ann.bbox, imgObj.width, imgObj.height),
+            carving_method: ann.carving_method || detectCarvingMethod(imgObj.imgElement, clampBBox(ann.bbox, imgObj.width, imgObj.height)),
+            manual_carving: !!ann.carving_method
+          }));
+          imgObj.design = data.design || "";
+          imgObj.remarks = data.remarks || "";
+          imgObj.annotation_status = data.annotation_status || "draft";
+          imgObj.status = "saved";
+          return true;
+        }
+      } catch (_) {}
+      return false;
+    }
+
     function renderQueueList() {
       const queueList = document.getElementById('queue-list');
       const filter = document.getElementById('filter-input').value.toLowerCase();
-      const filtered = state.images.filter(img => img.file_name.toLowerCase().includes(filter));
+      const filtered = state.images.filter(img => img.relative_path.toLowerCase().includes(filter));
 
       document.getElementById('queue-count').textContent = state.images.length;
       document.getElementById('btn-prev-img').disabled = state.currentIndex <= 0;
@@ -912,11 +1079,12 @@
         const originalIndex = state.images.indexOf(img);
         const isActive = originalIndex === state.currentIndex;
         const isComplete = img.annotation_status === "complete";
+        const isSaved = img.status === "saved";
         return `
           <div onclick="loadImageIndex(${originalIndex})" class="p-1.5 rounded text-xs flex items-center justify-between cursor-pointer border transition ${isActive ? 'bg-amber-50 border-amber-400 font-semibold text-amber-700' : 'bg-white hover:bg-gray-50 border-gray-200 text-gray-700'}">
             <div class="flex items-center space-x-2 truncate">
-              <i class="fa-regular fa-image ${isActive ? 'text-amber-600' : 'text-gray-400'}"></i>
-              <span class="truncate">${img.file_name}</span>
+              <span class="w-2 h-2 rounded-full ${isSaved ? 'bg-emerald-600' : img.status === 'dirty' ? 'bg-amber-500' : 'bg-gray-300'}"></span>
+              <span class="truncate">${img.relative_path}</span>
             </div>
             <div class="flex items-center gap-1">
               ${isComplete ? '<span class="text-[9px] bg-emerald-100 text-emerald-700 px-1 rounded font-bold">✓</span>' : ''}
@@ -1017,7 +1185,6 @@
         return;
       }
       const img = state.images[state.currentIndex].imgElement;
-      // 100% when image height covers the whole height of the canvas
       const fitHeightZoom = canvas.height / img.naturalHeight;
       const pct = Math.round((state.zoom / fitHeightZoom) * 100);
       document.getElementById('zoom-level-text').textContent = `${pct}%`;
@@ -1277,7 +1444,6 @@
           bbox[2] = newXmax;
           bbox[3] = newYmax;
 
-          // Re-detect carving method on modify if not locked by manual override
           if (!ann.manual_carving) {
             ann.carving_method = detectCarvingMethod(img.imgElement, bbox);
             updateCarvingDropdownUI(state.selectedIndex);
@@ -1310,7 +1476,6 @@
 
         ann.bbox = clampBBox(bbox, img.width, img.height);
 
-        // Re-detect carving method on resize if not locked by manual override
         if (!ann.manual_carving) {
           ann.carving_method = detectCarvingMethod(img.imgElement, ann.bbox);
           updateCarvingDropdownUI(state.selectedIndex);
@@ -1640,7 +1805,7 @@
       if (state.annotations[idx]) {
         state.annotations[idx][key] = val;
         if (key === 'carving_method') {
-          state.annotations[idx].manual_carving = true; // Lock manual override so bbox resizes won't overwrite it
+          state.annotations[idx].manual_carving = true;
         }
         redrawCanvas();
         saveCurrentMetadataToState();
@@ -1814,7 +1979,8 @@
         return { schema_version: "2.0.0", task: "character_detection", annotations: [] };
       }
       const img = state.images[state.currentIndex];
-      const annotator = document.getElementById('annotator-name').value || "Tester";
+      const annotatorInput = document.getElementById('annotator-name');
+      const annotator = annotatorInput ? annotatorInput.value.trim() || null : null;
 
       return {
         schema_version: "2.0.0",
@@ -1824,7 +1990,7 @@
         remarks: img.remarks || null,
         image: {
           file_name: img.file_name,
-          root_folder: img.root_folder,
+          root_folder: img.root_folder || null,
           relative_path: img.relative_path,
           path_kind: "relative_to_selected_root",
           format: img.format,
@@ -1909,7 +2075,21 @@
       const jsonStr = JSON.stringify(jsonOutput, null, 2);
       const filename = `${img.file_name}_coord.json`;
 
-      if ('showSaveFilePicker' in window) {
+      if (img.parentHandle && await verifyPermission(img.parentHandle, true)) {
+        try {
+          const outputHandle = await img.parentHandle.getFileHandle(filename, { create: true });
+          const writable = await outputHandle.createWritable();
+          await writable.write(jsonStr);
+          await writable.close();
+          removeDraft(img);
+          state.dirty = false;
+          img.status = "saved";
+          renderQueueList();
+        } catch (err) {
+          alert("Save Folder Error: " + err.message);
+          return;
+        }
+      } else if ('showSaveFilePicker' in window) {
         try {
           const handle = await window.showSaveFilePicker({
             suggestedName: filename,
@@ -1920,6 +2100,8 @@
           await writable.close();
           removeDraft(img);
           state.dirty = false;
+          img.status = "saved";
+          renderQueueList();
         } catch (err) {
           if (err.name !== 'AbortError') alert("Save File Error: " + err.message);
           return;
@@ -1934,6 +2116,8 @@
         downloadAnchor.remove();
         removeDraft(img);
         state.dirty = false;
+        img.status = "saved";
+        renderQueueList();
       }
 
       if (moveNext && state.currentIndex < state.images.length - 1) {
