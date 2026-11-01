@@ -275,10 +275,16 @@
               <span>Carving</span>
               <i class="fa-solid fa-circle-question text-gray-400 hover:text-amber-600 text-xs"></i>
               
-              <!-- White Hover Popover Card -->
-              <div class="absolute top-full mt-2 left-1/2 -translate-x-1/2 w-56 p-2.5 bg-white text-gray-800 text-[11px] rounded-lg shadow-2xl border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 text-left font-normal normal-case">
-                <p class="font-bold text-amber-600 mb-1">朱文 vs 白文 Difference</p>
-                <img src="craving_example.jpeg" alt="Carving Example" class="w-full h-24 object-cover rounded mb-1 bg-gray-100 border border-gray-200" onerror="this.style.display='none'">
+              <!-- White Hover Popover Card (Updated Width & Image Aspect Ratio) -->
+              <div class="absolute top-full mt-2 left-1/2 -translate-x-1/2 w-80 p-3 bg-white text-gray-800 text-[11px] rounded-lg shadow-2xl border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 text-left font-normal normal-case">
+                <p class="font-bold text-amber-600 mb-1.5">朱文 vs 白文 Difference</p>
+                
+                <!-- Full Aspect Ratio Image Display -->
+                <img src="craving_example.jpeg" 
+                    alt="Carving Example" 
+                    class="w-full h-24 max-h-48 object-contain rounded mb-2 bg-gray-100 border border-gray-200" 
+                    onerror="this.style.display='none'">
+                    
                 <p class="text-[10px] text-gray-600 leading-tight">
                   <strong class="text-gray-900">朱文 (Relief):</strong> Red characters on white background.<br>
                   <strong class="text-gray-900">白文 (Intaglio):</strong> White characters on red background.
