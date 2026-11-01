@@ -73,7 +73,7 @@
       </div>
       <div>
         <h1 class="font-bold text-base md:text-lg leading-tight">Seal Character Bounding Box Annotator</h1>
-        <p class="text-xs text-gray-400 hidden sm:block">v2.1.0 • Schema 2.0.0 Compatible</p>
+        <p class="text-xs text-gray-400 hidden sm:block">v2.1.0 • Multi-BBox Schema Compatible</p>
       </div>
     </div>
     <div class="flex items-center space-x-2">
@@ -208,8 +208,8 @@
         <!-- Canvas Floating Control Toolbar -->
         <div class="absolute top-2 left-2 z-10 flex items-center space-x-1 bg-slate-900/90 border border-slate-700/80 p-1 rounded-lg shadow-lg text-white text-xs">
           <!-- Undo / Redo Buttons -->
-          <button id="btn-undo" title="Undo (Ctrl+Z)" disabled class="p-1.5 hover:bg-slate-800 disabled:opacity-30 disabled:hover:bg-transparent rounded transition"><i class="fa-solid fa-rotate-left"></i></button>
-          <button id="btn-redo" title="Redo (Ctrl+Y)" disabled class="p-1.5 hover:bg-slate-800 disabled:opacity-30 disabled:hover:bg-transparent rounded transition"><i class="fa-solid fa-rotate-right"></i></button>
+          <button id="btn-undo" title="Undo (Ctrl+Z / Cmd+Z)" disabled class="p-1.5 hover:bg-slate-800 disabled:opacity-30 disabled:hover:bg-transparent rounded transition"><i class="fa-solid fa-rotate-left"></i></button>
+          <button id="btn-redo" title="Redo (Ctrl+Y / Cmd+Shift+Z)" disabled class="p-1.5 hover:bg-slate-800 disabled:opacity-30 disabled:hover:bg-transparent rounded transition"><i class="fa-solid fa-rotate-right"></i></button>
           <span class="text-gray-600">|</span>
           <button id="btn-zoom-in" title="Zoom In" class="p-1.5 hover:bg-slate-800 rounded transition"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
           <button id="btn-zoom-out" title="Zoom Out" class="p-1.5 hover:bg-slate-800 rounded transition"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
@@ -238,7 +238,8 @@
         <div class="bg-slate-900 text-gray-400 text-[10px] px-3 py-1 flex justify-between items-center border-t border-slate-800 shrink-0">
           <div class="flex space-x-3 overflow-x-auto whitespace-nowrap">
             <span><kbd class="bg-slate-800 px-1 border border-slate-700 rounded text-gray-200">Left Click + Drag</kbd> Draw Box</span>
-            <span><kbd class="bg-slate-800 px-1 border border-slate-700 rounded text-gray-200">Ctrl+Z / Y</kbd> Undo/Redo</span>
+            <span><kbd class="bg-slate-800 px-1 border border-slate-700 rounded text-gray-200">Cmd/Ctrl+Z</kbd> Undo</span>
+            <span><kbd class="bg-slate-800 px-1 border border-slate-700 rounded text-gray-200">Cmd/Ctrl+Y</kbd> Redo</span>
             <span><kbd class="bg-slate-800 px-1 border border-slate-700 rounded text-gray-200">Arrows</kbd> Move Box</span>
             <span><kbd class="bg-slate-800 px-1 border border-slate-700 rounded text-gray-200">Delete</kbd> Remove Box</span>
             <span><kbd class="bg-slate-800 px-1 border border-slate-700 rounded text-gray-200">Wheel</kbd> Zoom</span>
@@ -270,21 +271,18 @@
             <div class="col-span-2 text-center">Inscription</div>
             <div class="col-span-2 text-center">Transcription</div>
             
-            <!-- Carving Header with Info Tooltip (Circle Question Mark) -->
+            <!-- Carving Header with Info Tooltip -->
             <div class="col-span-2 text-center relative group flex items-center justify-center gap-1 cursor-help">
               <span>Carving</span>
               <i class="fa-solid fa-circle-question text-gray-400 hover:text-amber-600 text-xs"></i>
               
-              <!-- White Hover Popover Card (Updated Width & Image Aspect Ratio) -->
+              <!-- White Hover Popover Card -->
               <div class="absolute top-full mt-2 left-1/2 -translate-x-1/2 w-80 p-3 bg-white text-gray-800 text-[11px] rounded-lg shadow-2xl border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 text-left font-normal normal-case">
                 <p class="font-bold text-amber-600 mb-1.5">朱文 vs 白文 Difference</p>
-                
-                <!-- Full Aspect Ratio Image Display -->
                 <img src="craving_example.jpeg" 
                     alt="Carving Example" 
-                    class="w-full h-24 max-h-48 object-contain rounded mb-2 bg-gray-100 border border-gray-200" 
+                    class="w-full h-auto max-h-48 object-contain rounded mb-2 bg-gray-100 border border-gray-200" 
                     onerror="this.style.display='none'">
-                    
                 <p class="text-[10px] text-gray-600 leading-tight">
                   <strong class="text-gray-900">朱文 (Relief):</strong> Red characters on white background.<br>
                   <strong class="text-gray-900">白文 (Intaglio):</strong> White characters on red background.
@@ -398,6 +396,72 @@
 
     function getCharColor(index) {
       return CHARACTER_COLORS[index % CHARACTER_COLORS.length];
+    }
+
+    // ==========================================
+    // BOUNDING BOX MULTI-FORMAT CALCULATION UTILS
+    // ==========================================
+    function calculateBoundingBoxes(xyxy, imgWidth, imgHeight) {
+      const [xmin, ymin, xmax, ymax] = xyxy;
+      const width = xmax - xmin;
+      const height = ymax - ymin;
+
+      // 1. Absolute xyxy
+      const abs_xyxy = [xmin, ymin, xmax, ymax];
+
+      // 2. Absolute xywh
+      const abs_xywh = [xmin, ymin, width, height];
+
+      // Safe normalization helpers (avoid divide-by-zero)
+      const wDiv = imgWidth > 0 ? imgWidth : 1;
+      const hDiv = imgHeight > 0 ? imgHeight : 1;
+
+      // 3. Normalized xyxy [0, 1]
+      const norm_xyxy = [
+        parseFloat((xmin / wDiv).toFixed(4)),
+        parseFloat((ymin / hDiv).toFixed(4)),
+        parseFloat((xmax / wDiv).toFixed(4)),
+        parseFloat((ymax / hDiv).toFixed(4))
+      ];
+
+      // 4. YOLO cxcywh [0, 1]
+      const cx = (xmin + width / 2) / wDiv;
+      const cy = (ymin + height / 2) / hDiv;
+      const norm_w = width / wDiv;
+      const norm_h = height / hDiv;
+
+      const yolo_cxcywh = [
+        parseFloat(cx.toFixed(4)),
+        parseFloat(cy.toFixed(4)),
+        parseFloat(norm_w.toFixed(4)),
+        parseFloat(norm_h.toFixed(4))
+      ];
+
+      return {
+        xyxy: abs_xyxy,
+        xywh: abs_xywh,
+        normalized_xyxy: norm_xyxy,
+        yolo_cxcywh: yolo_cxcywh
+      };
+    }
+
+    // Extract standardized [xmin, ymin, xmax, ymax] from input JSON structures (supports legacy & v2)
+    function parseBBoxFromAnnotation(ann, imgWidth, imgHeight) {
+      if (ann.bounding_boxes && ann.bounding_boxes.xyxy) {
+        return ann.bounding_boxes.xyxy;
+      }
+      if (Array.isArray(ann.bbox)) {
+        return ann.bbox;
+      }
+      if (ann.bounding_boxes && ann.bounding_boxes.yolo_cxcywh) {
+        const [cx, cy, nw, nh] = ann.bounding_boxes.yolo_cxcywh;
+        const w = nw * imgWidth;
+        const h = nh * imgHeight;
+        const xmin = Math.round((cx - nw / 2) * imgWidth);
+        const ymin = Math.round((cy - nh / 2) * imgHeight);
+        return [xmin, ymin, Math.round(xmin + w), Math.round(ymin + h)];
+      }
+      return [0, 0, 50, 50];
     }
 
     // ==========================================
@@ -714,11 +778,11 @@
 
       if (btnUndo) {
         btnUndo.disabled = state.undoStack.length === 0;
-        btnUndo.title = `Undo (Ctrl+Z) [${state.undoStack.length}]`;
+        btnUndo.title = `Undo (Ctrl+Z / Cmd+Z) [${state.undoStack.length}]`;
       }
       if (btnRedo) {
         btnRedo.disabled = state.redoStack.length === 0;
-        btnRedo.title = `Redo (Ctrl+Y) [${state.redoStack.length}]`;
+        btnRedo.title = `Redo (Ctrl+Y / Cmd+Shift+Z) [${state.redoStack.length}]`;
       }
     }
 
@@ -1051,12 +1115,16 @@
         const text = await (await handle.getFile()).text();
         const data = JSON.parse(text);
         if (data.annotations && data.annotations.length) {
-          imgObj.annotations = data.annotations.map(ann => ({
-            ...ann,
-            bbox: clampBBox(ann.bbox, imgObj.width, imgObj.height),
-            carving_method: ann.carving_method || detectCarvingMethod(imgObj.imgElement, clampBBox(ann.bbox, imgObj.width, imgObj.height)),
-            manual_carving: !!ann.carving_method
-          }));
+          imgObj.annotations = data.annotations.map(ann => {
+            const bbox = parseBBoxFromAnnotation(ann, imgObj.width, imgObj.height);
+            const clamped = clampBBox(bbox, imgObj.width, imgObj.height);
+            return {
+              ...ann,
+              bbox: clamped,
+              carving_method: ann.carving_method || detectCarvingMethod(imgObj.imgElement, clamped),
+              manual_carving: !!ann.carving_method
+            };
+          });
           imgObj.design = data.design || "";
           imgObj.remarks = data.remarks || "";
           imgObj.annotation_status = data.annotation_status || "draft";
@@ -1978,7 +2046,7 @@
     }
 
     // ==========================================
-    // JSON BUILDER & PREVIEW
+    // JSON BUILDER & PREVIEW (UPDATED MULTI-BBOX FORMAT)
     // ==========================================
     function buildJsonObjectForCurrent() {
       if (state.currentIndex === -1 || !state.images[state.currentIndex]) {
@@ -2012,10 +2080,29 @@
           origin: "top-left",
           x_direction: "right",
           y_direction: "down",
-          unit: "pixel",
-          bbox_format: "xyxy",
-          edge_convention: "x_min_y_min_inclusive_x_max_y_max_exclusive",
-          reference: "browser-decoded display orientation"
+          reference: "browser-decoded display orientation",
+          formats_included: {
+            xyxy: {
+              unit: "pixel",
+              normalization: "absolute",
+              convention: "[x_min, y_min, x_max, y_max]"
+            },
+            xywh: {
+              unit: "pixel",
+              normalization: "absolute",
+              convention: "[x_min, y_min, width, height]"
+            },
+            normalized_xyxy: {
+              unit: "ratio",
+              normalization: "normalized_0_to_1",
+              convention: "[x_min_norm, y_min_norm, x_max_norm, y_max_norm]"
+            },
+            yolo_cxcywh: {
+              unit: "ratio",
+              normalization: "normalized_0_to_1",
+              convention: "[x_center, y_center, width, height]"
+            }
+          }
         },
         categories: [
           {
@@ -2023,17 +2110,22 @@
             name: "character"
           }
         ],
-        annotations: state.annotations.map((ann, idx) => ({
-          id: `char-${String(idx + 1).padStart(4, '0')}`,
-          type: "character",
-          category_id: 0,
-          order: idx,
-          bbox: clampBBox(ann.bbox, img.width, img.height),
-          inscription: ann.inscription || null,
-          transcription: ann.transcription || null,
-          carving_method: ann.carving_method || "relief",
-          legibility: ann.legibility || "unreviewed"
-        })),
+        annotations: state.annotations.map((ann, idx) => {
+          const clampedBbox = clampBBox(ann.bbox, img.width, img.height);
+          const multiBBoxes = calculateBoundingBoxes(clampedBbox, img.width, img.height);
+
+          return {
+            id: `char-${String(idx + 1).padStart(4, '0')}`,
+            type: "character",
+            category_id: 0,
+            order: idx,
+            bounding_boxes: multiBBoxes,
+            inscription: ann.inscription || null,
+            transcription: ann.transcription || null,
+            carving_method: ann.carving_method || "relief",
+            legibility: ann.legibility || "unreviewed"
+          };
+        }),
         provenance: {
           annotator: annotator,
           created_at: img.created_at || new Date().toISOString(),
@@ -2151,12 +2243,16 @@
             state.images[imgIdx].design = data.design || "";
             state.images[imgIdx].remarks = data.remarks || "";
             state.images[imgIdx].annotation_status = data.annotation_status || "draft";
-            state.images[imgIdx].annotations = data.annotations.map(ann => ({
-              ...ann,
-              bbox: clampBBox(ann.bbox, img.width, img.height),
-              carving_method: ann.carving_method || detectCarvingMethod(img.imgElement, clampBBox(ann.bbox, img.width, img.height)),
-              manual_carving: !!ann.carving_method
-            }));
+            state.images[imgIdx].annotations = data.annotations.map(ann => {
+              const bbox = parseBBoxFromAnnotation(ann, img.width, img.height);
+              const clamped = clampBBox(bbox, img.width, img.height);
+              return {
+                ...ann,
+                bbox: clamped,
+                carving_method: ann.carving_method || detectCarvingMethod(img.imgElement, clamped),
+                manual_carving: !!ann.carving_method
+              };
+            });
             loadImageIndex(imgIdx);
           } else {
             alert(`JSON imported successfully! Note: Corresponding image '${data.image.file_name}' needs to be loaded into the queue.`);
