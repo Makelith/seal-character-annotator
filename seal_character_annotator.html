@@ -461,6 +461,10 @@
         const ymin = Math.round((cy - nh / 2) * imgHeight);
         return [xmin, ymin, Math.round(xmin + w), Math.round(ymin + h)];
       }
+      if (ann.bounding_boxes && ann.bounding_boxes.normalized_xyxy) {
+        const [nx1, ny1, nx2, ny2] = ann.bounding_boxes.normalized_xyxy;
+        return [Math.round(nx1 * imgWidth), Math.round(ny1 * imgHeight), Math.round(nx2 * imgWidth), Math.round(ny2 * imgHeight)];
+      }
       return [0, 0, 50, 50];
     }
 
@@ -806,20 +810,15 @@
     function resizeCanvas() {
       if (!wrapper) return;
 
-      // 1. Update canvas dimensions to match the new wrapper/browser size
       canvas.width = wrapper.clientWidth;
       canvas.height = wrapper.clientHeight;
 
-      // 2. If an image is loaded, re-center it using the existing zoom level
       if (state.currentIndex !== -1 && state.images[state.currentIndex]) {
         const img = state.images[state.currentIndex].imgElement;
-        
-        // Recalculate panX and panY to perfectly center the image
         state.panX = (canvas.width - img.naturalWidth * state.zoom) / 2;
         state.panY = (canvas.height - img.naturalHeight * state.zoom) / 2;
       }
 
-      // 3. Redraw the canvas with the new layout
       redrawCanvas();
       updateZoomUI();
     }
@@ -2232,20 +2231,27 @@
         try {
           const data = JSON.parse(evt.target.result);
           if (!data.annotations || !data.image) {
-            throw new Error("Invalid schema format.");
+            throw new Error("Invalid schema format: Missing image or annotations key.");
           }
 
-          let imgIdx = state.images.findIndex(i => i.file_name === data.image.file_name);
+          // 1. Try to match by relative path or file_name in current queue
+          let imgIdx = state.images.findIndex(i => 
+            i.relative_path === data.image.relative_path || 
+            i.file_name === data.image.file_name
+          );
+
+          // 2. Fallback to currently selected image if only 1 image loaded
+          if (imgIdx === -1 && state.currentIndex !== -1) {
+            imgIdx = state.currentIndex;
+          }
 
           if (imgIdx !== -1) {
             pushHistoryState();
             const img = state.images[imgIdx];
-            state.images[imgIdx].design = data.design || "";
-            state.images[imgIdx].remarks = data.remarks || "";
-            state.images[imgIdx].annotation_status = data.annotation_status || "draft";
-            state.images[imgIdx].annotations = data.annotations.map(ann => {
-              const bbox = parseBBoxFromAnnotation(ann, img.width, img.height);
-              const clamped = clampBBox(bbox, img.width, img.height);
+
+            const parsedAnnotations = data.annotations.map(ann => {
+              const rawBox = parseBBoxFromAnnotation(ann);
+              const clamped = clampBBox(rawBox, img.width, img.height);
               return {
                 ...ann,
                 bbox: clamped,
@@ -2253,12 +2259,39 @@
                 manual_carving: !!ann.carving_method
               };
             });
-            loadImageIndex(imgIdx);
+
+            // Update BOTH the queued object in memory and active state
+            img.annotations = parsedAnnotations;
+            img.design = data.design || "";
+            img.remarks = data.remarks || "";
+            img.annotation_status = data.annotation_status || "draft";
+            img.status = "dirty";
+
+            removeDraft(img);
+
+            // Direct view reload
+            state.currentIndex = imgIdx;
+            state.annotations = parsedAnnotations;
+            state.selectedIndex = -1;
+
+            document.getElementById('seal-design').value = img.design;
+            document.getElementById('seal-remarks').value = img.remarks;
+            document.getElementById('annotation-status').value = img.annotation_status;
+            document.getElementById('chk-mark-complete').checked = (img.annotation_status === 'complete');
+
+            renderQueueList();
+            renderCharacterList();
+            redrawCanvas();
+            updateJSONPreview();
+
+            alert(`Successfully imported ${parsedAnnotations.length} annotations for "${img.file_name}".`);
           } else {
-            alert(`JSON imported successfully! Note: Corresponding image '${data.image.file_name}' needs to be loaded into the queue.`);
+            alert(`Could not find a matching image in the queue for file '${data.image.file_name}'. Please open the image first.`);
           }
         } catch (err) {
           alert("Error parsing JSON file: " + err.message);
+        } finally {
+          e.target.value = ""; // Reset input so re-importing the same file works
         }
       };
       reader.readAsText(file);
